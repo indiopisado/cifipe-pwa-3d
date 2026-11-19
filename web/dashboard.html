@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_top">
+  <title>C.I.FIPE 3D | Acompanhamento de Obras de Saneamento</title>
+  <meta name="cifipe-lista-url" content="https://ycyqhfgberjjgyvrqbyq.supabase.co/functions/v1/listar-obras-teste">
+  <meta name="cifipe-detalhes-url" content="https://ycyqhfgberjjgyvrqbyq.supabase.co/functions/v1/detalhes-obra-teste">
+  <meta name="cifipe-relatorio-url" content="https://ycyqhfgberjjgyvrqbyq.supabase.co/functions/v1/gerar-relatorio-teste">
+  <meta name="google-maps-api-key" content="AIzaSyAL7oyJhyg-Sj1ZvhrLGo_XPHwSVIbQXVM">
+  <script src="./mapa-3d.js?v=20261119-3"></script>
+  <script src="./relatorio.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #082b33; color: #f4effa; }
+    header { background: #090014; border-bottom: 1px solid #3b0754; padding: 18px 24px; }
+    header strong { font-size: 19px; } header small { display: block; margin-top: 5px; color: #b9a9c8; }
+    main { max-width: 1500px; margin: auto; padding: 16px; }
+    .assinatura { max-width: 1500px; margin: 0 auto; padding: 0 16px 18px; text-align: right; color: #b9a9c8; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+    /* Visual aprovado: bordas 2x; brilho original x 2 x 0,75 = 1,5x. */
+    :root { --neon: #67e8f9; --neon-border: rgba(103,232,249,.85); --neon-glow: 0 0 7px rgba(103,232,249,.6), 0 0 18px rgba(103,232,249,.33), inset 0 0 7px rgba(103,232,249,.15); }
+    .panel, .card { background: #1b032d; border: 2px solid var(--neon-border); border-radius: 12px; box-shadow: 0 5px 18px #0005, var(--neon-glow); }
+    .panel, .card, select, .action, .legend, .description, .photo button, dialog, .modal-top button, #mapa { transition: border-color .18s ease, box-shadow .18s ease; }
+    .panel:focus-within, .card:focus-within { box-shadow: 0 5px 18px #0005, 0 0 10px rgba(103,232,249,.9), 0 0 24px rgba(103,232,249,.48), inset 0 0 8px rgba(103,232,249,.225); }
+    @media (hover: hover) { .panel:hover, .card:hover { border-color: var(--neon); box-shadow: 0 5px 18px #0005, 0 0 10px rgba(103,232,249,1), 0 0 28px rgba(103,232,249,.6), inset 0 0 9px rgba(103,232,249,.27); } }
+    .panel { padding: 14px; } .card { padding: 16px; }
+    .card.nao-aplicavel, .card.nao-aplicavel:hover { opacity: .45; box-shadow: none; }
+    .filters { display: grid; grid-template-columns: 1.5fr 2fr repeat(4, 1fr); gap: 12px; }
+    label { display: block; font-size: 11px; font-weight: bold; color: #d38cff; margin-bottom: 6px; }
+    select { width: 100%; min-width: 0; padding: 10px; border: 1px solid #57216d; border-radius: 7px; background: #120020; color: #f7f1fb; }
+    .ctx { margin-top: 10px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; }
+    .sync { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .action { padding: 10px 16px; background: #3a0755; color: #fff; border: 1px solid #6b2b83; border-radius: 7px; cursor: pointer; font-weight: bold; }
+    .action:disabled { opacity: .55; cursor: wait; }
+    .report-actions { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; } .report-actions select { width: 95px; }
+    @media (max-width: 560px) { .sync { align-items: stretch; flex-direction: column; } }
+    .cards { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); gap: 10px; margin: 12px 0; }
+    .card small { color: #21e6e6; font-weight: bold; font-size: 11px; letter-spacing: .4px; }
+    .card.esgoto small { color: #ff4da6; } .v { font-size: 23px; font-weight: bold; margin-top: 8px; }
+    .progress-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .donut { width: 78px; height: 78px; border-radius: 50%; background: #34213f; position: relative; flex: 0 0 78px; }
+    .donut::after { content: ''; position: absolute; inset: 12px; border-radius: 50%; background: #1b032d; }
+    .donut span { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; font-size: 12px; font-weight: bold; }
+    /* Efeito de vidro restrito aos dois cartões de avanço; sem alterar conteúdo. */
+    .card.progress-glass { --progress-accent: 103,232,249; position: relative; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 65% 0, rgba(220,218,255,.17), transparent 45%), radial-gradient(ellipse at top left, rgba(var(--progress-accent),.20), transparent 65%), linear-gradient(135deg, rgba(38,20,66,.94), rgba(27,3,45,.96)); border-color: rgba(var(--progress-accent),.85); box-shadow: 0 8px 20px rgba(0,0,0,.23), 0 0 12px rgba(var(--progress-accent),.26), inset 0 1px 2px rgba(255,255,255,.35), inset 0 -3px 12px rgba(var(--progress-accent),.10); }
+    .card.progress-glass.esgoto { --progress-accent: 255,77,166; }
+    .card.progress-glass::before, .card.progress-glass::after { content: ''; position: absolute; z-index: -1; pointer-events: none; width: 125%; height: 80px; left: -12%; bottom: -54px; border-radius: 50%; border-top: 1px solid rgba(var(--progress-accent),.32); background: linear-gradient(rgba(var(--progress-accent),.13), transparent); transform: rotate(-7deg); }
+    .card.progress-glass::after { bottom: -63px; transform: rotate(6deg); opacity: .6; }
+    @supports ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
+      .card.progress-glass { background: radial-gradient(ellipse at 65% 0, rgba(220,218,255,.17), transparent 45%), radial-gradient(ellipse at top left, rgba(var(--progress-accent),.20), transparent 65%), linear-gradient(135deg, rgba(38,20,66,.78), rgba(27,3,45,.86)); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+    }
+    .card.progress-glass:hover, .card.progress-glass:focus-within { border-color: rgba(var(--progress-accent),.95); box-shadow: 0 8px 20px rgba(0,0,0,.25), 0 0 14px rgba(var(--progress-accent),.26), inset 0 1px 0 rgba(255,255,255,.18); }
+    .card.progress-glass.nao-aplicavel, .card.progress-glass.nao-aplicavel:hover { transition: none; box-shadow: none; border-color: var(--neon-border); background: #1b032d; -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .card.progress-glass.nao-aplicavel::before, .card.progress-glass.nao-aplicavel::after { display: none; }
+    .card.progress-glass.nao-aplicavel .donut { box-shadow: none; }
+    .layout { display: grid; grid-template-columns: minmax(0, 2.25fr) minmax(300px, 1fr); gap: 12px; }
+    h2, h3 { margin: 0 0 14px; font-size: 16px; } h4 { color: #21e6e6; font-size: 11px; letter-spacing: .6px; margin: 18px 0 8px; }
+    #mapa { width: 100%; height: 560px; border-radius: 9px; background: #160424; }
+    .mapa-area { position: relative; }
+    #mapa3d { position: absolute; inset: 0; background: #040923; }
+    #mapa3d[hidden] { display: none; }
+    #mapa3d > * { width: 100%; height: 100%; }
+    #mapa.inativo-3d { visibility: hidden; pointer-events: none; }
+    .mapa-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+    #painelMapa.mapa-ampliado .mapa-area, #painelMapa:fullscreen .mapa-area { flex: 1; min-height: 0; }
+    #painelMapa.mapa-ampliado .mapa-area #mapa, #painelMapa:fullscreen .mapa-area #mapa { height: 100%; }
+    .map-base-control { display: flex; overflow: hidden; background: #120020; border: 2px solid var(--neon-border); border-radius: 8px; box-shadow: var(--neon-glow); }
+    .map-base-control button { min-height: 40px; padding: 8px 12px; border: 0; background: #120020; color: #fff; font: bold 12px Arial; cursor: pointer; }
+    .map-base-control button[aria-pressed="true"] { background: #67e8f9; color: #082b33; }
+    .map-base-control button:disabled { opacity: .6; cursor: wait; }
+    .map-base-control button:focus-visible { outline-offset: -3px; }
+    .legend { background: #120020; color: #f8f3ff; padding: 6px 8px; border: 1px solid #6b2b83; border-radius: 7px; font-size: 10px; line-height: 1.35; }
+    .legend .note { font-size: inherit; }
+    .legend b { color: #21e6e6; } .sw { display: inline-block; width: 30px; margin-right: 7px; vertical-align: middle; }
+    .water { border-top: 6px solid #20e4e4; } .sewer { border-top: 4px solid #ff4da6; }
+    .point-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #9aa5b1; margin-right: 7px; }
+    .row { padding: 8px 0; border-bottom: 1px solid #3d0b54; font-size: 13px; overflow-wrap: anywhere; }
+    .row b { color: #c7b6d6; } #painelSelecao { align-self: start; border-top: 6px solid #21e6e6; }
+    #painelSelecao.ponto { border-top-color: #9aa5b1; } #painelSelecao.ponto h3, #painelSelecao.ponto h4 { color: #9aa5b1; }
+    .description { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 13px; line-height: 1.6; background: #120020; border: 1px solid #57216d; border-radius: 7px; padding: 12px; margin: 0; }
+    .photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .photo { min-width: 0; margin: 0; } .photo button { width: 100%; display: block; border: 1px solid #57216d; background: #120020; border-radius: 7px; padding: 0; overflow: hidden; cursor: zoom-in; }
+    .photo img { width: 100%; height: 120px; display: block; object-fit: cover; }
+    .photo figcaption { font-size: 11px; color: #b9a9c8; margin-top: 5px; overflow-wrap: anywhere; }
+    .card .progress-summary { font-size: 18px; font-weight: bold; color: #67e8f9; overflow-wrap: anywhere; }
+    .card.esgoto .progress-summary { color: #ff8fc4; }
+    .note { font-size: 12px; color: #b9a9c8; line-height: 1.6; } .warning { color: #ffc107; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .warning:empty { display: none; } #avisosLeitura { max-height: 180px; overflow: auto; }
+    .table-panel { margin-top: 12px; } .table-scroll { overflow-x: auto; }
+    table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 12px; } th, td { padding: 11px; border-bottom: 1px solid #3d0b54; text-align: left; }
+    th { background: #26043b; color: #21e6e6; white-space: nowrap; } td { overflow-wrap: anywhere; }
+    tr.data-row { cursor: pointer; } tr.data-row:hover { background: #31064a; } tr.data-row.selected { background: #350a48; box-shadow: inset 3px 0 #21e6e6; }
+    tr.data-row.selected.ponto { box-shadow: inset 3px 0 #9aa5b1; }
+    :focus-visible { outline: 2px solid #21e6e6; outline-offset: 3px; }
+
+    dialog { max-width: 95vw; max-height: 95vh; background: #120020; color: #f4effa; border: 1px solid #6b2b83; border-radius: 12px; padding: 14px; }
+    dialog::backdrop { background: #000d; } dialog img { display: block; max-width: 88vw; max-height: 75vh; object-fit: contain; margin: auto; }
+    .modal-top { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 10px; }
+    .modal-top button { border: 1px solid #6b2b83; background: #3a0755; color: white; padding: 8px 12px; border-radius: 7px; cursor: pointer; }
+    select, .action, .legend, .description, .photo button, dialog, .modal-top button { border-width: 2px; border-color: var(--neon-border); box-shadow: 0 0 6px rgba(103,232,249,.42), inset 0 0 5px rgba(103,232,249,.12); }
+    #mapa { border: 2px solid var(--neon-border); box-shadow: 0 0 8px rgba(103,232,249,.45); }
+    @media (prefers-reduced-motion: reduce) { .panel, .card, select, .action, .legend, .description, .photo button, dialog, .modal-top button, #mapa { transition: none; } }
+    [hidden] { display: none !important; }
+    @media (max-width: 1050px) { .filters { grid-template-columns: 2fr 1fr 1fr; } .cards { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 560px) { main { padding: 10px; } header { padding: 16px; } .filters, .cards { grid-template-columns: 1fr; } #mapa { height: 400px; } }
+
+    /* Composição completa aprovada para o navegador. */
+    body { background: #02071d; color: #eef3ff; font-family: 'Segoe UI', Arial, sans-serif; }
+    header.app-header { min-height: 76px; padding: 12px 28px; display: flex; align-items: center; justify-content: space-between; gap: 18px; background: linear-gradient(110deg,#04051c,#03152a); border-bottom: 1px solid #00d6ee; }
+    .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; vertical-align: middle; }
+    .brand .icon { width: 32px; height: 42px; color: #00cfe9; }
+    header .brand strong { font-size: 24px; letter-spacing: -.5px; }
+    header .brand small { margin-top: 1px; font-size: 14px; color: #a9cfee; }
+    .header-actions { display: flex; align-items: center; gap: 12px; color: #00d6ee; }
+    .icon-button { display: inline-grid; place-items: center; width: 34px; min-height: 34px; padding: 4px; border: 0; background: transparent; color: #00d6ee; cursor: pointer; }
+    #botaoAtualizar { width: 36px; padding: 4px; font-size: 0; background: transparent; border: 0; box-shadow: none; color: #00d6ee; }
+    #botaoAtualizar::before { content: '↻'; font-size: 30px; line-height: 1; }
+    .header-status { border-left: 1px solid #07506a; border-right: 1px solid #07506a; padding: 0 12px; max-width: 240px; }
+    .header-status .note { font-size: 10px; line-height: 1.4; color: #68e6f2; }
+    .header-status b { display: none; }
+    .header-status #tempoAtualizacao { display: none; }
+    .header-status #estadoAtualizacao::before { content: ''; width: 7px; height: 7px; background: #00d88c; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    main { max-width: 1640px; padding: 12px 18px 0; }
+    .panel,.card { background: #04071f; border: 1px solid #00cce8; border-radius: 12px; box-shadow: 0 0 10px #00cce81a; }
+    .panel:hover,.panel:focus-within { border-color: #36e7f5; box-shadow: 0 0 12px #00cce829; }
+    .filters { gap: 7px; padding: 9px; margin: 0 0 18px; grid-template-columns: 1.3fr 1.9fr repeat(4,minmax(0,1fr)) 92px; align-items: center; }
+    .filters > div { padding: 7px 9px 9px; border: 1px solid #37337c; border-radius: 12px; background: #060723; min-width: 0; }
+    label { font-size: 11px; font-weight: 500; color: #e4a7ff; margin-bottom: 5px; }
+    select { min-height: 39px; padding: 8px 10px; background: #030a25; font: inherit; font-size: 13px; border: 1px solid #00a8d9; box-shadow: 0 0 5px #00cce812; }
+    .action { min-height: 40px; border: 1px solid #00cce8; font-size: 12px; background: #080b26; box-shadow: 0 0 6px #00cce81a; }
+    .menu-popover { position: relative; color: #00d6ee; }
+    .menu-popover summary { list-style: none; cursor: pointer; }
+    .menu-popover summary::-webkit-details-marker { display: none; }
+    .menu-popover .menu-content { position: absolute; right: 0; top: 100%; z-index: 1001; min-width: 220px; border: 1px solid #00cce8; background: #060922; border-radius: 8px; padding: 8px; box-shadow: 0 8px 20px #0008; }
+    .menu-content button { background: transparent; color: #eef3ff; border: 0; cursor: pointer; text-align: left; width: 100%; padding: 10px; font: inherit; font-size: 13px; }
+    .filter-menu summary { border: 1px solid #00cce8; border-radius: 8px; padding: 10px; font-size: 12px; text-align: center; }
+    .overview { display: grid; grid-template-columns: minmax(0,1.08fr) minmax(0,1fr) minmax(0,1fr); gap: 16px; margin-bottom: 16px; align-items: stretch; }
+    .cards { display: contents; }
+    .card.progress-glass { min-height: 214px; padding: 16px 18px; display: grid; grid-template-columns: 142px minmax(0,1fr); grid-template-rows: 26px 1fr; column-gap: 18px; }
+    .progress-title { grid-column: 1/-1; margin: 0; display: flex; align-items: center; gap: 9px; font-size: 16px; color: #00d9f3; font-weight: 700; }
+    .progress-title small,.card small { font-size: inherit; letter-spacing: 0; }
+    .esgoto .progress-title { color: #f36fe1; }
+    .progress-card { display: contents; }
+    .progress-card > .v { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .card .donut { width: 138px; height: 138px; flex-basis: 138px; align-self: center; box-shadow: 0 0 18px rgba(var(--progress-accent),.12), inset 0 0 1px rgba(255,255,255,.8); }
+    .card .donut::after { inset: 13px; background: linear-gradient(145deg,#101633,#080b26); box-shadow: inset 0 3px 14px #0003; }
+    .card .donut span { font-size: 30px; font-weight: 600; }
+    .progress-reading { align-self: center; min-width: 0; color: #c3d7f1; font-size: 12px; }
+    .progress-reading small { display: block; color: #4dc7ed; margin-bottom: 3px; }
+    .esgoto .progress-reading small { color: #ee8bdc; }
+    .progress-reading strong { color: #fff; font-size: 15px; }
+    .progress-timing { margin-top: 14px; padding-top: 12px; border-top: 1px solid #00badc; line-height: 1.6; }
+    .esgoto .progress-timing { border-color: #bf53c5; }
+    .progress-reading .progress-warning { font-size: 10px; margin: 6px 0 0; color: #f4cf8c; }
+    .sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip-path: inset(50%) !important; white-space: nowrap !important; }
+    .report-panel { display: block; margin: 0; padding: 12px; min-width: 0; }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; font-size: 17px; font-weight: 600; color: #f4f5ff; }
+    .panel-title > span { display: flex; align-items: center; gap: 10px; }
+    .report-panel .panel-title { border-bottom: 1px solid #173757; padding-bottom: 10px; }
+    .report-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.9fr) auto; gap: 9px; align-items: end; }
+    .report-actions select { width: 100%; }
+    .report-actions label { color: #00d6ee; }
+    #botaoRelatorio { border-color: #c5a2f7; box-shadow: 0 0 8px #b673f866, inset 0 0 6px #a1a2f833; white-space: nowrap; padding: 8px 10px; }
+    .ctx { margin: 10px 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; font-size: 10px; gap: 5px; color: #b6d1ef; }
+    .ctx span { overflow-wrap: anywhere; }
+    #arquivosObra { margin: 8px 0 0; padding: 9px; border: 1px solid #155b80; border-radius: 7px; font-size: 11px; box-shadow: none; }
+    #arquivosObra summary { cursor: pointer; }
+    #avisoPasta,#avisosLeitura { font-size: 11px; margin: 6px 0; }
+    #avisoPasta:empty,#avisosLeitura:empty { display: none; }
+    .layout { grid-template-columns: minmax(0,2.28fr) minmax(310px,1fr); gap: 14px; }
+    #painelMapa { padding: 10px; min-width: 0; }
+    #painelMapa .panel-title { margin-bottom: 7px; }
+    #mapa { height: clamp(340px,37vh,480px); border: 0; border-radius: 5px; box-shadow: none; }
+    #painelMapa:fullscreen { display: flex; flex-direction: column; background: #03071f; padding: 18px; }
+    #painelMapa:fullscreen #mapa { flex: 1; height: auto; }
+    #resultadoFiltro { display: inline; color: #00d6ee; font-size: 11px; margin: 9px 0 0 8px; }
+    .map-count { display: inline; color: #a9cfee; font-size: 11px; }
+    #painelSelecao { align-self: stretch; border-top: 1px solid #00cce8; padding: 13px 16px; min-width: 0; }
+    #painelSelecao .panel-title { border-bottom: 1px solid #193650; padding-bottom: 10px; }
+    #tituloSelecao { color: #00d6ee; font-size: 11px; margin: 10px 0 7px; }
+    #detail { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; font-size: 12px; }
+    #detail .row { padding: 9px 0; border-bottom: 1px solid #193650; font-size: 12px; }
+    #detail .row b { display: block; color: #00d6ee; font-size: 10px; font-weight: 500; margin-bottom: 5px; }
+    h4 { color: #00d6ee; font-size: 11px; font-weight: 500; margin: 12px 0 6px; }
+    .description { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 0; font-size: 12px; color: #b9cde9; }
+    #estadoFotos { font-size: 11px; }
+    .table-panel { padding: 0; margin-top: 15px; }
+    .table-panel > summary { list-style: none; cursor: pointer; padding: 13px 18px; }
+    .table-panel > summary::-webkit-details-marker { display: none; }
+    .table-panel > summary .panel-title { margin: 0 0 3px; }
+    .table-panel > summary .panel-title::after { content: '›'; color: #74cde2; font-size: 23px; }
+    .table-panel[open] > summary .panel-title::after { transform: rotate(90deg); }
+    .table-panel > summary .note { margin: 0; font-size: 11px; }
+    .table-scroll { padding: 0 12px 12px; }
+    th { background: #09102b; }
+    td { border-color: #193650; }
+    .legend { background: #040923; border: 1px solid #00a7cc; font-size: 10px; box-shadow: 0 0 5px #00cce81a; }
+    .map-base-control { background: #040923; border: 1px solid #00a7cc; box-shadow: 0 0 6px #00cce829; }
+    .map-base-control button { background: #040923; min-height: 36px; }
+    .map-base-control button[aria-pressed="true"] { background: #04283a; color: #00d6ee; box-shadow: inset 0 0 7px #00cce84d; }
+    .advance-explanation { margin: 9px 0; font-size: 10px; color: #8fa3c5; }
+    .assinatura { font-size: 10px; color: #8fa3c5; padding-bottom: 10px; }
+    .filters label,.report-actions label { font-size: 12px; }
+    .filters select,.report-actions select { font-size: 14px; }
+    .progress-reading { font-size: 14px; }
+    .progress-reading strong { font-size: 16px; }
+    .progress-reading .progress-warning { font-size: 11px; }
+    .ctx,#arquivosObra { font-size: 11px; }
+    .description,#detail .row { font-size: 13px; }
+    #detail .row b { font-size: 11px; }
+    #detail > .selection-intro { grid-column: 1/-1; margin: 0; font-size: 13px; color: #b9cde9; }
+    .header-status #estadoAtualizacao::before { background: #dbb957; }
+    .header-status[data-estado="atualizado"] #estadoAtualizacao::before { background: #00d88c; }
+    @media(max-width:1200px) { .card.progress-glass { grid-template-columns: 112px minmax(0,1fr); column-gap: 10px; padding: 13px; } .card .donut { width: 108px; height: 108px; } .progress-title { font-size: 13px; } .report-actions { grid-template-columns: 1fr 1fr; } #botaoRelatorio { grid-column: 1/-1; } }
+    @media(max-width:1000px) { .overview { grid-template-columns: 1fr 1fr; } .report-panel { grid-column: 1/-1; } .filters { grid-template-columns: 1.5fr 2fr 1fr; } .filter-menu { align-self: end; } .layout { grid-template-columns: minmax(0,1.7fr) minmax(290px,1fr); } }
+    @media(max-width:760px) { header.app-header { padding: 12px; } header .brand strong { font-size: 19px; } header .brand small { font-size: 10px; } .header-status { display: none; } .header-actions { gap: 5px; } main { padding: 10px; } .layout { grid-template-columns: 1fr; } .filters { grid-template-columns: 1fr 1fr; } .overview { gap: 10px; } #mapa { height: 380px; } }
+    @media(max-width:560px) { .overview { grid-template-columns: 1fr; } .report-panel { grid-column: auto; } .card.progress-glass { grid-template-columns: 128px minmax(0,1fr); min-height: 208px; } .card .donut { width: 124px; height: 124px; } .filters { grid-template-columns: 1fr; } .progress-title { font-size: 15px; } .header-actions .report-shortcut { display: none; } .header-status { max-width: 140px; } }
+
+    /* Mesma imagem do ícone Android, enquadrada sem alterar os bytes originais. */
+    .brand-logo { display: block; width: 54px; height: 54px; overflow: hidden; border-radius: 8px; flex: 0 0 54px; }
+    .brand-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .header-status { max-width: 460px; }
+    .header-status #tempoAtualizacao { display: block; font-size: 10px; color: #b9d8ec; line-height: 1.5; }
+    @media(max-width:760px) {
+      header.app-header { flex-wrap: wrap; gap: 10px; }
+      .header-actions { width: 100%; justify-content: flex-end; }
+      .header-status { display: block; flex: 1; min-width: 0; max-width: none; }
+      .brand-logo { width: 48px; height: 48px; flex-basis: 48px; }
+    }
+    #painelMapa.mapa-ampliado { position: fixed; inset: 0; z-index: 1100; display: flex; flex-direction: column; border-radius: 0; }
+    #painelMapa.mapa-ampliado #mapa { flex: 1; height: auto; }
+    .header-status[data-estado="atualizado"] #estadoAtualizacao::before { background: #00d88c; }
+  </style>
+<link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icons/cifipe-180.png"><link rel="icon" href="./icons/cifipe-192.png"><meta name="theme-color" content="#0b1026"><meta name="referrer" content="strict-origin-when-cross-origin"><meta name="apple-mobile-web-app-capable" content="yes"><script defer src="./instalacao.js"></script></head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="i-drop" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 1C10 5 3 12 3 16a9 9 0 0 0 18 0C21 12 14 5 12 1Z"/><path d="M7 15c-1 3 1 5 3 5" stroke="#03152a"/></symbol><symbol id="i-waves" viewBox="0 0 24 24"><path d="M2 5q3-3 6 0t6 0t6 0M2 11q3-3 6 0t6 0t6 0M2 17q3-3 6 0t6 0t6 0"/></symbol><symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6zM14 2v6h5M9 12h7M9 16h7"/></symbol><symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol><symbol id="i-map" viewBox="0 0 24 24"><path d="M12 22s8-10 8-14a8 8 0 1 0-16 0c0 4 8 14 8 14Z"/><circle cx="12" cy="8" r="2"/></symbol><symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v7M12 6v1"/></symbol><symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18M3 15h18"/></symbol><symbol id="i-expand" viewBox="0 0 24 24"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></symbol></svg><header class="app-header"><div class="brand"><span class="brand-logo"><img src="./icons/cifipe-192.png" alt="Ícone C.I.FIPE" width="90" height="90"></span><div><strong>C.I.FIPE</strong><small>Acompanhamento de Obras de Saneamento</small></div></div><div class="header-actions"><button id="botaoAtualizar" class="action" type="button" title="Atualizar dados" aria-label="Atualizar dados" onclick="atualizarDados()">ATUALIZAR</button><button class="icon-button report-shortcut" type="button" aria-label="Ir ao relatório" onclick="document.querySelector('.report-panel').scrollIntoView({behavior:'smooth',block:'center'})"><svg class="icon" aria-hidden="true"><use href="#i-doc"/></svg></button><div class="header-status" aria-label="Atualização dos dados"><b>Dados da obra</b><div id="estadoAtualizacao" class="note" role="status">Aguardando leitura dos dados da obra.</div><div id="ultimaAtualizacao" class="note"></div><div id="tempoAtualizacao" class="note"></div></div><details class="menu-popover"><summary class="icon-button" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></summary><div class="menu-content"><button type="button" id="voltarConsultaCifipe" hidden>Voltar ao início</button><button type="button" onclick="document.getElementById('painelTabela').open=true;document.getElementById('painelTabela').scrollIntoView({behavior:'smooth'})">Elementos vistoriados</button></div></details></div></header>
+<main>
+<p id="avisoAmbiente" class="panel warning" role="status" hidden></p>
+  <section class="panel filters" aria-label="Filtros da consulta">
+    <div><label for="filtroConcessionaria">CONCESSIONÁRIA</label><select id="filtroConcessionaria" onchange="selecionarConcessionariaDashboard()"><option value="">Carregando...</option></select></div>
+    <div><label for="obra">OBRA — FILTRO PRINCIPAL</label><select id="obra" onchange="carregarArquivosObra()"><option value="">Carregando obras...</option></select></div>
+    <div><label for="sistema">SISTEMA</label><select id="sistema" onchange="aplicarFiltros()"><option value="">Todos</option></select></div>
+    <div><label for="status">STATUS</label><select id="status" onchange="aplicarFiltros()"><option value="">Todos</option></select></div>
+    <div><label for="servico">SERVIÇO</label><select id="servico" onchange="aplicarFiltros()"><option value="">Todos</option></select></div>
+    <div><label for="diametro">DIÂMETRO</label><select id="diametro" onchange="aplicarFiltros()"><option value="">Todos</option></select></div>
+    <details class="menu-popover filter-menu"><summary>☷ Filtros</summary><div class="menu-content"><button type="button" onclick="limparFiltrosVisuais()">Limpar filtros secundários</button></div></details>
+  </section>
+<div class="overview"><section class="cards" aria-label="Indicadores da consulta"><div class="card progress-glass" id="cardAgua"><h2 class="progress-title"><svg class="icon" aria-hidden="true"><use href="#i-drop"/></svg><small id="tituloAvancoAgua">AVANÇO — ÁGUA</small></h2><div class="progress-card"><div class="v" id="dashAvAgua">—</div><div class="donut" id="donutAgua" role="img" aria-label="Avanço indisponível"><span id="donutAguaTxt">—</span></div><div class="progress-reading"><small>Executado</small><div><strong id="executadoAgua">—</strong><span> / Previsto: <span id="previstoAgua">Não informado</span></span></div><p class="progress-warning" id="avisoAvancoAgua"></p></div></div><p id="resumoAgua" class="note progress-summary sr-only">Aguardando dados.</p></div><div class="card progress-glass esgoto" id="cardEsgoto"><h2 class="progress-title"><svg class="icon" aria-hidden="true"><use href="#i-waves"/></svg><small>AVANÇO — ESGOTO</small></h2><div class="progress-card"><div class="v" id="dashAvEsg">—</div><div class="donut" id="donutEsg" role="img" aria-label="Avanço indisponível"><span id="donutEsgTxt">—</span></div><div class="progress-reading"><small>Executado</small><div><strong id="executadoEsg">—</strong><span> / Previsto: <span id="previstoEsg">Não informado</span></span></div><p class="progress-warning" id="avisoAvancoEsg"></p></div></div><p id="resumoEsg" class="note progress-summary sr-only">Aguardando dados.</p></div></section><section class="panel report-panel" aria-label="Relatório técnico"><h2 class="panel-title"><span><svg class="icon" aria-hidden="true"><use href="#i-doc"/></svg>Relatório da consulta</span></h2><div class="report-actions"><div><label for="escopoRelatorio">ESCOPO</label><select id="escopoRelatorio" title="Global: todos os pontos e trechos da obra, sem o polígono. Atual: somente o ponto ou trecho selecionado."><option value="global">Global</option><option value="atual" selected>Atual</option></select></div><div><label for="formatoRelatorio">FORMATO</label><select id="formatoRelatorio"><option value="pdf">PDF</option><option value="docx">DOCX</option></select></div><button id="botaoRelatorio" class="action" type="button" disabled onclick="gerarRelatorio()">GERAR RELATÓRIO</button></div><div class="panel ctx"><span><b>Concessionária:</b> <span id="concessionaria">—</span></span><span id="indicadorExtensaoPrevista">Extensão prevista: não informada</span></div><details id="arquivosObra" class="panel" hidden><summary id="resumoArquivos">Arquivos KML/KMZ da obra</summary><ul id="listaArquivos" class="note"></ul></details><p id="estadoRelatorio" class="note" role="status" hidden></p></section></div>
+<p id="avisoPasta" class="note warning" role="status"></p><p id="avisosLeitura" class="note warning" role="status"></p>
+  <div class="layout">
+    <section class="panel" id="painelMapa"><h2 class="panel-title"><span><svg class="icon" aria-hidden="true"><use href="#i-map"/></svg>Mapa geográfico</span><button class="icon-button" type="button" aria-label="Ampliar mapa" onclick="ampliarMapaVisual()"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg></button></h2><p id="estadoMapa" class="note warning" role="status"></p><div class="mapa-toolbar"><div class="map-base-control" role="group" aria-label="Visualização do mapa"><button type="button" data-fundo="padrao" aria-pressed="false">Local</button><button type="button" data-fundo="satelite" aria-pressed="true">Satélite</button><button type="button" data-fundo="3d" aria-pressed="false">3D</button></div><button id="voltarMapa2d" class="action" type="button" hidden>Voltar ao mapa 2D</button></div><div class="mapa-area"><div id="mapa" aria-label="Mapa dos elementos da obra"></div><div id="mapa3d" aria-label="Mapa 3D dos elementos da obra" hidden></div></div><p id="estadoCamadas3d" class="note" role="status" hidden></p><button id="enquadrarObra3d" class="action" type="button" hidden>Enquadrar elementos da obra</button><div class="map-count">Elementos exibidos: <span id="quantidadeElementos">0</span></div><p id="resultadoFiltro" class="note" role="status">Nenhum elemento carregado.</p></section>
+    <aside id="painelSelecao" class="panel" aria-label="Detalhes do elemento selecionado">
+      <h2 class="panel-title"><span><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>Ficha técnica</span></h2><h3 id="tituloSelecao">TRECHO SELECIONADO</h3><div id="detail" class="note">Selecione um elemento no mapa ou na tabela.</div>
+      <h4>DESCRIÇÃO</h4><pre id="descricaoElemento" class="description">Nenhum elemento selecionado.</pre>
+      <h4>FOTOGRAFIAS</h4><div id="photos" class="photos"></div><p id="estadoFotos" class="note">Nenhum elemento selecionado.</p>
+    </aside>
+  </div>
+  <details class="panel table-panel" id="painelTabela"><summary><h2 class="panel-title"><span><svg class="icon" aria-hidden="true"><use href="#i-table"/></svg>Elementos vistoriados</span></h2><p class="note">Tabela consultável e expansível com seleção de registros</p></summary>
+    <div class="table-scroll"><table id="elementosVistoriados"><thead><tr><th scope="col">Elemento</th><th scope="col">Tipo</th><th scope="col">Sistema</th><th scope="col">Serviço</th><th scope="col" data-metragem>Diâmetro</th><th scope="col" data-metragem>Extensão</th><th scope="col">Status</th><th scope="col">Fotos</th></tr></thead><tbody id="tabelaElementos"></tbody></table></div>
+  </details>
+<p class="advance-explanation">Avanços globais da obra: trechos com status Executado, Concluído ou Em execução. Os filtros alteram os elementos exibidos, sem alterar esses percentuais.</p>
+</main>
+<footer class="assinatura">Desenvolvido e construído por Eng. David Jr e Tatiana Santos.</footer>
+<dialog id="modalFoto" aria-labelledby="tituloFoto"><div class="modal-top"><span id="tituloFoto">Fotografia</span><button type="button" onclick="fecharFoto()">Fechar</button></div><img id="modalImg" alt="Fotografia ampliada"><p id="erroFoto" class="note warning"></p></dialog>
+  <script>
+    let dadosKMZCarregados = [];
+    let mapa;
+    let tipoMapa = 'satelite';
+    let ultimoMapa2d = 'satelite';
+    let mapa3d = null;
+    let pedidoModoMapa = 0;
+    let camadaBase;
+    const fundosMapa = {
+      padrao: { nome: 'Padrão', url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', credito: '© OpenStreetMap contributors' },
+      satelite: { nome: 'Satélite', url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', credito: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community' }
+    };
+    let camadaTrechos;
+    let dadosExibidos = [];
+    let idSelecionado = null;
+    const camadasPorElemento = new Map();
+    const linhasPorElemento = new Map();
+    let versaoCarga = 0;
+    let avancosGlobaisObra = null;
+    let leituraObra = null;
+    let obraExibida = null;
+    let consultaDesatualizada = true;
+    let medicaoAtualizacao = null;
+    let relatorioEmCurso = false;
+    const endpointLista = document.querySelector('meta[name="cifipe-lista-url"]').content;
+    const endpointDetalhes = document.querySelector('meta[name="cifipe-detalhes-url"]').content;
+    const endpointRelatorio = document.querySelector('meta[name="cifipe-relatorio-url"]').content;
+    let revisaoExibida = null;
+    const fotosPorElemento = new Map();
+
+    async function consultarCifipe(endpoint, parametros) {
+      const url = new URL(endpoint, location.href);
+      for (const [chave, valor] of Object.entries(parametros || {})) {
+        if (valor) url.searchParams.set(chave, valor);
+      }
+      const resposta = await fetch(url, { credentials: 'omit', cache: 'no-store' });
+      const corpo = await resposta.json();
+      if (!resposta.ok || corpo.ok !== true) throw new Error(corpo.error || 'Consulta indisponível.');
+      return corpo;
+    }
+    
+  function iniciarMapa() {
+  mapa = L.map('mapa').setView([-22.97, -43.37], 12);
+
+camadaTrechos = L.layerGroup().addTo(mapa);
+  trocarFundoMapa('satelite');
+
+const legenda = L.control({ position: 'bottomleft' });
+
+legenda.onAdd = function() {
+  const div = L.DomUtil.create('div');
+
+  div.className = 'legend';
+  div.innerHTML =
+    '<b>SISTEMA</b><br><span class="sw water"></span>Água<br>' +
+    '<span class="sw sewer"></span>Esgoto<br><span class="point-dot"></span>Ponto / estrutura<br>' +
+    '<b>STATUS</b><br>Contínua = Executado / Concluído<br>Tracejada = Em execução<br>' +
+    '<span class="note">Cinza = sistema não informado</span>';
+
+  return div;
+};
+
+legenda.addTo(mapa);
+}
+function vistaMapa2d() {
+  const centro = mapa.getCenter ? mapa.getCenter() : { lat: -22.97, lng: -43.37 };
+  return { center: { lat: centro.lat, lng: centro.lng }, zoom: mapa.getZoom(), height: document.getElementById('mapa').clientHeight || 400 };
+}
+function guardarVista3d() {
+  const vista = mapa3d && mapa3d.getView();
+  if (vista && mapa.setView) mapa.setView([vista.center.lat, vista.center.lng], vista.zoom, { animate: false });
+}
+function atualizarSeletorMapa() {
+  document.querySelectorAll('[data-fundo]').forEach(function(botao) { botao.setAttribute('aria-pressed', String(botao.dataset.fundo === tipoMapa)); });
+  document.getElementById('voltarMapa2d').hidden = tipoMapa !== '3d';
+  document.getElementById('estadoCamadas3d').hidden = tipoMapa !== '3d';
+  document.getElementById('enquadrarObra3d').hidden = tipoMapa !== '3d';
+}
+function atualizarEstadoCamadas3d(estado) {
+  const resumo = document.getElementById('estadoCamadas3d');
+  resumo.hidden = tipoMapa !== '3d';
+  resumo.textContent = estado.requested
+    ? 'Elementos preparados no 3D: ' + estado.rendered + ' de ' + estado.requested + '.' + (estado.failed ? ' ' + estado.failed + ' elemento(s) não puderam ser desenhados; os demais continuam disponíveis.' : ' Use “Enquadrar elementos da obra” para localizá-los.')
+    : 'Nenhum elemento da obra disponível para estes filtros. Aguarde o carregamento dos dados ou revise os filtros.';
+}
+function enquadrarElementos3d() {
+  if (!mapa3d || tipoMapa !== '3d') return;
+  const coordenadas = dadosExibidos.flatMap(function(item) { return item.coordenadasMapa || []; });
+  if (coordenadas.length) mapa3d.focus({ tipoGeometrico: 'LineString', coordenadasMapa: coordenadas });
+}
+function mostrarMapa2d(tipo) {
+  if (tipoMapa === '3d') guardarVista3d();
+  if (mapa3d) mapa3d.hide();
+  document.getElementById('mapa3d').hidden = true;
+  document.getElementById('mapa').classList.remove('inativo-3d');
+  document.getElementById('mapa').removeAttribute('aria-hidden');
+  tipoMapa = tipo; ultimoMapa2d = tipo;
+  if (mapa.invalidateSize) mapa.invalidateSize();
+  atualizarSeletorMapa();
+}
+function falhaMapa3d(erro) {
+  if (tipoMapa !== '3d') return;
+  ++pedidoModoMapa;
+  mostrarMapa2d(ultimoMapa2d);
+  document.getElementById('estadoMapa').textContent = (erro && erro.message || 'O mapa 3D está indisponível.') + ' Você voltou ao mapa 2D e pode tentar 3D novamente.';
+}
+async function trocarFundoMapa(tipo) {
+  if (relatorioEmCurso || (!fundosMapa[tipo] && tipo !== '3d')) return;
+  if (tipo === '3d' && tipoMapa === '3d') return;
+  const pedido = ++pedidoModoMapa;
+  if (tipo === '3d') {
+    if (!window.CifipeMapa3D) { document.getElementById('estadoMapa').textContent = 'O componente 3D não carregou. Atualize a página com conexão à internet. O mapa 2D continua disponível.'; return; }
+    const vista = vistaMapa2d();
+    if (!mapa3d) mapa3d = window.CifipeMapa3D.create({
+      container: document.getElementById('mapa3d'),
+      apiKey: document.querySelector('meta[name="google-maps-api-key"]').content,
+      onSelect: function(id) { selecionarElemento(id, false); },
+      onError: falhaMapa3d,
+      onDataChange: atualizarEstadoCamadas3d
+    });
+    tipoMapa = '3d';
+    document.getElementById('mapa3d').hidden = false;
+    document.getElementById('mapa').classList.add('inativo-3d');
+    document.getElementById('mapa').setAttribute('aria-hidden', 'true');
+    atualizarSeletorMapa();
+    document.getElementById('estadoMapa').textContent = 'Carregando mapa 3D. Você pode retornar ao mapa 2D a qualquer momento.';
+    mapa3d.setData(dadosExibidos, idSelecionado);
+    try {
+      const ativo = await mapa3d.show(vista);
+      if (pedido !== pedidoModoMapa || tipoMapa !== '3d' || !ativo) return;
+      document.getElementById('estadoMapa').textContent = '3D ativo. A disponibilidade de edifícios fotorrealistas varia por local; sem cobertura, são exibidos imagem e relevo.';
+    } catch (erro) { if (pedido === pedidoModoMapa) falhaMapa3d(erro); }
+    return;
+  }
+  const era3d = tipoMapa === '3d';
+  mostrarMapa2d(tipo);
+  if (!camadaTrechos) { document.getElementById('estadoMapa').textContent = 'Mapa de coordenadas sem fundo de ruas. Atualize a página para recarregar o mapa 2D.'; return; }
+  if (camadaBase && !era3d && camadaBase._cifipeTipo === tipo) return;
+  if (camadaBase) mapa.removeLayer(camadaBase);
+  document.getElementById('estadoMapa').textContent = '';
+  camadaBase = L.tileLayer(fundosMapa[tipo].url, {
+    pane: 'tilePane', zIndex: 1, crossOrigin: 'anonymous', maxZoom: 19,
+    attribution: fundosMapa[tipo].credito
+  });
+  camadaBase._cifipeTipo = tipo;
+  const novaCamada = camadaBase;
+  novaCamada.on('tileerror', function() {
+    if (camadaBase === novaCamada) document.getElementById('estadoMapa').textContent = 'O fundo ' + fundosMapa[tipo].nome + ' não carregou. Verifique a conexão; os elementos da obra continuam disponíveis.';
+  }).addTo(mapa);
+  atualizarSeletorMapa();
+}
+function calcularExtensaoTrechos(dados) {
+  let extensaoTotal = 0;
+
+  dados.forEach(function(item) {
+    if (item.tipoGeometrico && item.tipoGeometrico !== 'LineString') return;
+    if (Number.isFinite(item.extensaoCalculada) && item.extensaoCalculada >= 0) {
+      extensaoTotal += item.extensaoCalculada;
+      return;
+    }
+    if (!item.coordenadasMapa || item.coordenadasMapa.length < 2) {
+      return;
+    }
+
+    for (let i = 1; i < item.coordenadasMapa.length; i++) {
+      const pontoAnterior = L.latLng(item.coordenadasMapa[i - 1]);
+      const pontoAtual = L.latLng(item.coordenadasMapa[i]);
+
+      extensaoTotal += pontoAnterior.distanceTo(pontoAtual);
+    }
+  });
+
+  return extensaoTotal;
+}
+function iconePonto(item, usarAlternativa) {
+  const referencia = item.simbolo && item.simbolo.src || '';
+  const nomeCor = referencia.match(/^https?:\/\/download\.avenza\.com\/images\/pdfmaps_icons\/(red|yellow|green|blue|orange|purple|pink|white|black|gray|grey)_pin(?:_classic)?\.png$/i);
+  const cores = { red: '#e53935', yellow: '#ffd600', green: '#43a047', blue: '#1976d2', orange: '#ff8f00', purple: '#8e24aa', pink: '#ec407a', white: '#ffffff', black: '#212121', gray: '#9aa5b1', grey: '#9aa5b1' };
+  const cor = nomeCor ? cores[nomeCor[1].toLowerCase()] : '#9aa5b1';
+  const padrao = L.divIcon({ className: 'pino-ponto', html: '<svg width="26" height="36" viewBox="0 0 26 36"><path d="M13 35C10 29 1 20 1 13a12 12 0 0 1 24 0c0 7-9 16-12 22Z" fill="' + cor + '" stroke="#fff" stroke-width="2"/><circle cx="13" cy="13" r="4" fill="#fff"/></svg>', iconSize: [26, 36], iconAnchor: [13, 35] });
+  const simbolo = item.simbolo;
+  if (usarAlternativa || !simbolo || !/^(?:https:\/\/|data:image\/(?:png|jpeg|gif|webp);base64,)/i.test(simbolo.src)) return padrao;
+  const tamanho = 32 * Math.min(3, Math.max(.25, Number(simbolo.escala) || 1));
+  const a = simbolo.ancora;
+  function ancora(valor, unidade, vertical) {
+    if (!Number.isFinite(valor)) return tamanho / 2;
+    return unidade === 'fraction' ? tamanho * (vertical ? 1 - valor : valor) : unidade === 'pixels' ? (vertical ? tamanho - valor : valor) : unidade === 'insetPixels' ? (vertical ? valor : tamanho - valor) : tamanho / 2;
+  }
+  return L.divIcon({ className: 'pino-ponto', html: '<img class="simbolo-avenza" alt="" src="' + escaparTexto(simbolo.src) + '" style="width:100%;height:100%;object-fit:contain">', iconSize: [tamanho, tamanho], iconAnchor: a ? [ancora(a.x, a.xunits, false), ancora(a.y, a.yunits, true)] : [tamanho / 2, tamanho / 2] });
+}
+
+function ordenarCamadasMapa(dados) {
+  // Limites no fundo; linhas e pinos por cima. Não alterar a ordem da tabela/relatório.
+  function nivel(item) { return item.tipoGeometrico === 'Polygon' ? 0 : item.tipoGeometrico === 'Point' ? 2 : 1; }
+  return dados.slice().sort(function(a, b) { return nivel(a) - nivel(b); });
+}
+
+function selecionarTrechoPorToque(evento, alternativa) {
+  if (!evento || !evento.latlng || !mapa.latLngToLayerPoint) { selecionarElemento(alternativa, false); return; }
+  const toque = mapa.latLngToLayerPoint(evento.latlng);
+  let escolhido = alternativa, distancia = Infinity;
+  dadosExibidos.forEach(function(item) {
+    if (item.tipoGeometrico === 'Point' || item.tipoGeometrico === 'Polygon' || !item.coordenadasMapa) return;
+    for (let i = 1; i < item.coordenadasMapa.length; i++) {
+      const a = mapa.latLngToLayerPoint(item.coordenadasMapa[i - 1]), b = mapa.latLngToLayerPoint(item.coordenadasMapa[i]);
+      const dx = b.x - a.x, dy = b.y - a.y, comprimento = dx * dx + dy * dy;
+      const t = comprimento ? Math.max(0, Math.min(1, ((toque.x - a.x) * dx + (toque.y - a.y) * dy) / comprimento)) : 0;
+      const d = Math.hypot(toque.x - a.x - t * dx, toque.y - a.y - t * dy);
+      if (d < distancia) { distancia = d; escolhido = item.idElemento; }
+    }
+  });
+  selecionarElemento(escolhido, false);
+}
+function desenharTrechos(dados, preservarEnquadramento) {
+  if (tipoMapa === '3d') guardarVista3d();
+  dadosExibidos = dados;
+  if (camadaTrechos) camadaTrechos.clearLayers();
+  camadasPorElemento.clear();
+  const limites = [];
+  if (!camadaTrechos) desenharMapaSemBiblioteca(dados);
+  const escala = window.frameElement ? window.frameElement.getBoundingClientRect().width / window.innerWidth : 1;
+  const larguraToque = Math.min(120, Math.max(28, 28 / (escala || 1)));
+  ordenarCamadasMapa(dados).forEach(function(item) {
+    if (!camadaTrechos) return;
+    const ponto = item.tipoGeometrico === 'Point', poligono = item.tipoGeometrico === 'Polygon';
+    if (!item.coordenadasMapa || item.coordenadasMapa.length < (ponto ? 1 : 2)) return;
+    const sistema = normalizarValor(item.sistema);
+    const estilo = {
+      color: poligono ? '#ff802f' : ponto ? '#9aa5b1' : sistema === 'agua' ? '#20e4e4' : sistema === 'esgoto' ? '#ff4da6' : '#9aa5b1',
+      weight: ponto ? 2 : sistema === 'agua' ? 6 : 4,
+      opacity: 0.85,
+      dashArray: !ponto && normalizarValor(item.status) === 'em execucao' ? '10 7' : null,
+      radius: 7, fillColor: poligono ? '#ff802f' : '#9aa5b1', fill: ponto, interactive: !poligono, fillOpacity: ponto ? .65 : 0
+    };
+    if (!ponto && !poligono) {
+      // Mantém a linha fina, mas oferece cerca de 28 pixels de área de toque
+      // mesmo quando o dashboard está reduzido dentro do aplicativo.
+      L.polyline(item.coordenadasMapa, { color: estilo.color, weight: larguraToque, opacity: 0, fill: false, fillOpacity: 0, interactive: true, bubblingMouseEvents: false })
+        .on('click', function(evento) { selecionarTrechoPorToque(evento, item.idElemento); }).addTo(camadaTrechos);
+    }
+    const camada = ponto ? L.marker(item.coordenadasMapa[0], { icon: iconePonto(item) }) : poligono ? L.polygon(item.aneisMapa || [item.coordenadasMapa], estilo) : L.polyline(item.coordenadasMapa, estilo);
+    if (!poligono) camada.on('click', function(evento) { if (ponto) selecionarElemento(item.idElemento, false); else selecionarTrechoPorToque(evento, item.idElemento); });
+    camada.addTo(camadaTrechos);
+    if (ponto && camada.getElement) {
+      const imagem = camada.getElement().querySelector('.simbolo-avenza');
+      if (imagem) {
+        const recuperar = function() { camada.setIcon(iconePonto(item, true)); atualizarDestaques(); };
+        imagem.addEventListener('error', recuperar, { once: true });
+        if (imagem.complete && !imagem.naturalWidth) recuperar();
+      }
+    }
+    camadasPorElemento.set(item.idElemento, { camada: camada, estilo: estilo, ponto: ponto, poligono: poligono });
+    limites.push(...item.coordenadasMapa);
+  });
+  if (limites.length && !preservarEnquadramento) mapa.fitBounds(limites, { padding: [20, 20], maxZoom: 18 });
+  renderizarTabela(dados);
+  if (idSelecionado && !dados.some(function(item) { return item.idElemento === idSelecionado; })) limparSelecao();
+  else atualizarDestaques();
+  if (mapa3d) {
+    mapa3d.setData(dadosExibidos, idSelecionado);
+    if (tipoMapa === '3d' && limites.length && !preservarEnquadramento) mapa3d.show(vistaMapa2d()).catch(falhaMapa3d);
+  }
+  const pontos = dados.filter(function(item) { return item.tipoGeometrico === 'Point'; }).length;
+  const trechos = dados.filter(function(item) { return item.tipoGeometrico === 'LineString'; }).length;
+  const limitesObra = dados.filter(function(item) { return item.tipoGeometrico === 'Polygon'; }).length;
+  document.getElementById('quantidadeElementos').textContent = dados.length.toLocaleString('pt-BR');
+  document.getElementById('resultadoFiltro').textContent = dados.length
+    ? 'Trechos exibidos: ' + trechos + ' | Pontos exibidos: ' + pontos + ' | Limites da obra: ' + limitesObra
+    : 'Nenhum elemento encontrado para os filtros selecionados.';
+}
+function normalizarValor(valor) {
+  return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
+function quantidadeConexoesT_(descricao) {
+  const m = String(descricao == null ? '' : descricao).trim().match(/^(\d+)(?:\.(?!\d)\s*([\s\S]*)|\r?\n([\s\S]*)|$)/);
+  if (!m || !Number.isSafeInteger(Number(m[1]))) return null;
+  return { quantidade: Number(m[1]), observacao: m[2] === undefined ? (m[3] || '') : m[2] };
+}
+function descricaoConexoesT_(descricao) {
+  const item = quantidadeConexoesT_(descricao);
+  return item ? item.quantidade.toLocaleString('pt-BR') + ' CONEXÕES T INSTALADAS.' + (item.observacao ? '\n' + item.observacao : '') : 'Quantidade de conexões T não informada ou inválida.\n' + String(descricao || '');
+}
+function formatarUnidades(valor) { return Number.isSafeInteger(valor) ? valor.toLocaleString('pt-BR') + ' un.' : 'Não informada'; }
+function atualizarPrevisoes(agua, esgoto) {
+  document.getElementById('indicadorExtensaoPrevista').textContent = 'Previsto Água: ' + formatarMetros(agua) + ' | Previsto Esgoto: ' + formatarMetros(esgoto);
+}
+
+// Só a carga da obra chama esta função. aplicarFiltros nunca recalcula avanços.
+function renderizarAvancosGlobais(avancos, estado) {
+  avancosGlobaisObra = avancos;
+  const rio = avancos && avancos.modoAvanco === 'conexoes_t';
+  document.getElementById('tituloAvancoAgua').textContent = rio ? 'AVANÇO DE INST. DE CONEXÕES T' : 'AVANÇO — ÁGUA';
+  document.getElementById('cardEsgoto').classList.toggle('nao-aplicavel', !!rio);
+  const unidade = rio ? formatarUnidades : formatarMetros;
+  if (avancos) atualizarPrevisoes(avancos.agua.previsto, avancos.esgoto.previsto);
+  if (rio) document.getElementById('indicadorExtensaoPrevista').textContent = 'PREVISTO DE CONEXÕES T: ' + formatarUnidades(avancos.agua.previsto);
+  [['agua', 'Agua', 'Água', '#20e4e4'], ['esgoto', 'Esg', 'Esgoto', '#ff4da6']].forEach(function(config) {
+    const indicador = avancos ? avancos[config[0]] : null;
+    const percentual = indicador && Number.isFinite(indicador.percentual) ? indicador.percentual : null;
+    const texto = percentual === null ? '—' : percentual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    document.getElementById('dashAv' + config[1]).textContent = texto;
+    document.getElementById('donut' + config[1] + 'Txt').textContent = texto;
+    const donut = document.getElementById('donut' + config[1]);
+    const graus = Math.min(100, Math.max(0, percentual || 0)) * 3.6;
+    donut.style.background = 'conic-gradient(' + config[3] + ' 0deg, ' + config[3] + ' ' + graus + 'deg, #34213f ' + graus + 'deg, #34213f 360deg)';
+    donut.setAttribute('aria-label', 'Avanço global ' + config[2] + ': ' + (percentual === null ? 'indisponível' : texto));
+    let aviso = estado === 'carregando' ? 'Carregando avanço global...' : estado === 'erro' ? 'Dados indisponíveis.' : 'Aguardando dados.';
+    const aplicavel = indicador && !(rio && config[0] === 'esgoto');
+    const executado = aplicavel ? unidade(indicador.concluido) : '—';
+    const previsto = aplicavel ? unidade(indicador.previsto) : '—';
+    if (aplicavel) aviso = '';
+    if (indicador) {
+      if (indicador.estado === 'incompleto') aviso += ' Dados incompletos: avanço indisponível.';
+      else if (indicador.estado === 'sem-previsao') aviso += ' Previsão por sistema não informada.';
+      else if (indicador.estado === 'previsao-zero') aviso += (rio ? ' Percentual não aplicável com previsão de 0 un.' : ' Percentual não aplicável com previsão de 0 m.');
+      if (indicador.excedente > 0) aviso += ' Acima da previsão em ' + unidade(indicador.excedente) + '.';
+    }
+    if (rio && config[0] === 'esgoto') aviso = 'NÃO SE APLICA';
+    if (rio && config[0] === 'agua' && avancos.pendencias && avancos.pendencias.length) aviso += ' Confira a quantidade na descrição: ' + avancos.pendencias.join(', ') + '.';
+    document.getElementById('executado' + config[1]).textContent = executado;
+    document.getElementById('previsto' + config[1]).textContent = previsto;
+    document.getElementById('avisoAvanco' + config[1]).textContent = aviso.trim();
+    document.getElementById('resumo' + config[1]).textContent = aplicavel
+      ? ('Executado: ' + executado + ' / Previsto: ' + previsto + '. ' + aviso.trim()).trim()
+      : aviso.trim();
+  });
+}
+
+function formatarMetros(valor) {
+  return Number.isFinite(valor) ? valor.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' m' : 'Não informada';
+}
+
+function renderizarTabela(dados) {
+  const materiais = !!(avancosGlobaisObra && avancosGlobaisObra.modoAvanco === 'conexoes_t');
+  document.querySelectorAll('#elementosVistoriados th[data-metragem]').forEach(function(th) { th.hidden = materiais; });
+  const corpo = document.getElementById('tabelaElementos');
+  corpo.replaceChildren();
+  linhasPorElemento.clear();
+  if (!dados.length) {
+    const linha = document.createElement('tr'), celula = document.createElement('td');
+    celula.colSpan = materiais ? 6 : 8;
+    celula.textContent = 'Nenhum elemento encontrado para os filtros selecionados.';
+    linha.appendChild(celula); corpo.appendChild(linha);
+    return;
+  }
+  const linhas = document.createDocumentFragment();
+  dados.forEach(function(item) {
+    const ponto = item.tipoGeometrico === 'Point', poligono = item.tipoGeometrico === 'Polygon';
+    const linha = document.createElement('tr');
+    linha.className = 'data-row' + (ponto ? ' ponto' : '');
+    linha.tabIndex = 0;
+    linha.setAttribute('aria-label', 'Selecionar ' + (item.nome || item.nomeBase));
+    [item.nome || item.nomeBase, poligono ? 'Limite da obra' : ponto ? 'Estrutura' : 'Logradouro', item.sistema || 'Não informado',
+      item.servico || 'Não informado', item.diametro || 'Não informado', item.tipoGeometrico !== 'LineString' ? 'Não se aplica' : formatarMetros(item.extensaoCalculada),
+      item.status || 'Não informado', (item.fotos || []).filter(function(foto) { return foto.disponivel; }).length + ' / ' + (item.fotos || []).length
+    ].forEach(function(valor, indice) {
+      const celula = document.createElement('td'); celula.hidden = materiais && (indice === 4 || indice === 5); celula.textContent = valor; linha.appendChild(celula);
+    });
+    linha.addEventListener('click', function() { selecionarElemento(item.idElemento, true); });
+    linha.addEventListener('keydown', function(evento) {
+      if (evento.key === 'Enter' || evento.key === ' ') { evento.preventDefault(); selecionarElemento(item.idElemento, true); }
+    });
+    linhas.appendChild(linha);
+    linhasPorElemento.set(item.idElemento, linha);
+  });
+  corpo.appendChild(linhas);
+}
+
+function atualizarDestaques() {
+  if (mapa3d) mapa3d.setSelected(idSelecionado);
+  camadasPorElemento.forEach(function(registro, id) {
+    const selecionado = id === idSelecionado;
+    if (registro.camada.setStyle) registro.camada.setStyle(Object.assign({}, registro.estilo, {
+      weight: registro.estilo.weight + (selecionado ? 3 : 0), opacity: selecionado ? 1 : registro.estilo.opacity,
+      fillOpacity: registro.ponto && selecionado ? 1 : registro.estilo.fillOpacity
+    }));
+    if (registro.ponto && registro.camada.setRadius) registro.camada.setRadius(selecionado ? 10 : 7);
+    if (registro.ponto && registro.camada.setZIndexOffset) {
+      registro.camada.setZIndexOffset(selecionado ? 1000 : 0);
+      const pino = registro.camada.getElement();
+      if (pino) pino.style.filter = selecionado ? 'drop-shadow(0 0 5px white)' : '';
+    }
+    if (selecionado && !registro.poligono && registro.camada.bringToFront) registro.camada.bringToFront();
+  });
+  linhasPorElemento.forEach(function(linha, id) {
+    linha.classList.toggle('selected', id === idSelecionado);
+    if (id === idSelecionado) linha.setAttribute('aria-current', 'true');
+    else linha.removeAttribute('aria-current');
+  });
+}
+
+function limparSelecao() {
+  idSelecionado = null;
+  fecharFoto();
+  document.getElementById('painelSelecao').classList.remove('ponto');
+  document.getElementById('tituloSelecao').textContent = 'TRECHO SELECIONADO';
+  document.getElementById('detail').textContent = 'Selecione um elemento no mapa ou na tabela.';
+  document.getElementById('descricaoElemento').textContent = 'Nenhum elemento selecionado.';
+  document.getElementById('photos').replaceChildren();
+  document.getElementById('estadoFotos').textContent = 'Nenhum elemento selecionado.';
+  atualizarDestaques();
+}
+
+function selecionarElemento(id, localizar) {
+  const item = dadosExibidos.find(function(elemento) { return elemento.idElemento === id; });
+  if (!item) { limparSelecao(); return; }
+  fecharFoto();
+  idSelecionado = id;
+  const ponto = item.tipoGeometrico === 'Point', poligono = item.tipoGeometrico === 'Polygon';
+  document.getElementById('painelSelecao').classList.toggle('ponto', ponto);
+  document.getElementById('tituloSelecao').textContent = poligono ? 'LIMITE DA OBRA' : ponto ? 'PONTO SELECIONADO' : 'TRECHO SELECIONADO';
+  const detalhe = document.getElementById('detail');
+  detalhe.replaceChildren();
+  detalhe.className = '';
+  const data = new Date(item.dataModificacao);
+  const campos = [
+    ['Nome', item.nome || item.nomeBase], ['Sistema', item.sistema], ['Status', item.status],
+    ['Serviço', item.servico], ['Diâmetro', item.diametro],
+    ['Extensão calculada', item.tipoGeometrico !== 'LineString' ? 'Não se aplica' : formatarMetros(item.extensaoCalculada)],
+    ['Arquivo vigente', item.nomeArquivo], ['Data da versão', Number.isNaN(data.getTime()) ? 'Não informada' : data.toLocaleString('pt-BR')]
+  ];
+  const logradouro = Object.keys(item.atributos || {}).find(function(chave) { return normalizarValor(chave) === 'logradouro'; });
+  if (logradouro) campos.push(['Logradouro informado', item.atributos[logradouro]]);
+  campos.forEach(function(campo) {
+    const linha = document.createElement('div'), rotulo = document.createElement('b');
+    linha.className = 'row'; rotulo.textContent = campo[0] + ': ';
+    linha.appendChild(rotulo); linha.appendChild(document.createTextNode(campo[1] || 'Não informado')); detalhe.appendChild(linha);
+  });
+  (item.avisos || []).forEach(function(aviso) {
+    const linha = document.createElement('p'); linha.className = 'note warning'; linha.textContent = aviso; detalhe.appendChild(linha);
+  });
+  document.getElementById('descricaoElemento').textContent = avancosGlobaisObra && avancosGlobaisObra.modoAvanco === 'conexoes_t' && item.tipoGeometrico === 'LineString' ? descricaoConexoesT_(item.descricao) : item.descricao === '' || item.descricao == null ? 'Descrição não informada.' : item.descricao;
+  carregarFotosElemento(item);
+  atualizarDestaques();
+  if (localizar && item.coordenadasMapa && item.coordenadasMapa.length) {
+    if (tipoMapa === '3d' && mapa3d) { mapa3d.focus(item); return; }
+    if (ponto) mapa.setView(item.coordenadasMapa[0], Math.max(mapa.getZoom(), 17));
+    else mapa.fitBounds(item.coordenadasMapa, { padding: [35, 35], maxZoom: 18 });
+  }
+}
+
+function fotoSegura(foto) {
+  return foto.disponivel && /^data:image\/(?:jpeg|png|gif|webp);base64,[a-z0-9+/]+={0,2}$/i.test(foto.src || '');
+}
+
+async function carregarFotosElemento(item) {
+  const fotos = item.fotos || [];
+  if (!fotos.some(function(foto) { return foto.disponivel && !foto.src; })) {
+    renderizarFotos(fotos);
+    return;
+  }
+  const id = item.idElemento;
+  const obra = obraExibida;
+  const revisao = revisaoExibida;
+  document.getElementById('photos').replaceChildren();
+  document.getElementById('estadoFotos').textContent = 'Carregando fotografias…';
+  let consulta = fotosPorElemento.get(id);
+  if (!consulta) {
+    consulta = consultarCifipe(endpointDetalhes, { obra, revisao, elemento: id });
+    fotosPorElemento.set(id, consulta);
+  }
+  try {
+    const resposta = await consulta;
+    if (idSelecionado === id && obraExibida === obra && revisaoExibida === revisao) renderizarFotos(resposta.data);
+  } catch (erro) {
+    if (fotosPorElemento.get(id) === consulta) fotosPorElemento.delete(id);
+    if (idSelecionado === id && obraExibida === obra && revisaoExibida === revisao) {
+      document.getElementById('estadoFotos').textContent = erro.message + ' Selecione o elemento para tentar novamente.';
+    }
+  }
+}
+
+function renderizarFotos(fotos) {
+  const galeria = document.getElementById('photos'); galeria.replaceChildren();
+  document.getElementById('estadoFotos').textContent = fotos.length ? 'Clique em uma miniatura para ampliar. Fotos disponíveis / associadas: ' + fotos.filter(fotoSegura).length + ' / ' + fotos.length : 'Nenhuma fotografia associada.';
+  fotos.forEach(function(foto) {
+    const figura = document.createElement('figure'), legenda = document.createElement('figcaption');
+    figura.className = 'photo'; legenda.textContent = foto.nome || foto.caminho || 'Fotografia';
+    if (fotoSegura(foto)) {
+      const botao = document.createElement('button'), imagem = document.createElement('img');
+      botao.type = 'button'; botao.setAttribute('aria-label', 'Ampliar ' + legenda.textContent);
+      imagem.src = foto.src; imagem.alt = legenda.textContent; imagem.loading = 'lazy'; imagem.decoding = 'async';
+      imagem.addEventListener('error', function() {
+        botao.disabled = true; imagem.hidden = true; legenda.textContent += ' — Não foi possível exibir a imagem.';
+      });
+      botao.appendChild(imagem); botao.addEventListener('click', function() { abrirFoto(foto); }); figura.appendChild(botao);
+    } else {
+      const aviso = document.createElement('p'); aviso.className = 'note warning'; aviso.textContent = foto.aviso || 'Foto indisponível.'; figura.appendChild(aviso);
+    }
+    figura.appendChild(legenda); galeria.appendChild(figura);
+  });
+}
+
+function abrirFoto(foto) {
+  if (!fotoSegura(foto)) return;
+  document.getElementById('tituloFoto').textContent = foto.nome || 'Fotografia';
+  document.getElementById('modalImg').src = foto.src;
+  document.getElementById('modalImg').alt = foto.nome || 'Fotografia ampliada';
+  document.getElementById('erroFoto').textContent = '';
+  const modal = document.getElementById('modalFoto'); if (!modal.open) modal.showModal();
+}
+
+function fecharFoto() {
+  const modal = document.getElementById('modalFoto');
+  if (modal.open) modal.close();
+  document.getElementById('modalImg').removeAttribute('src');
+}
+
+function escaparTexto(valor) {
+  return String(valor).replace(/[&<>"']/g, function(caractere) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[caractere];
+  });
+}
+
+    function aplicarFiltros(preservarEnquadramento) {
+
+  const sistemaSelecionado = document.getElementById('sistema').value;
+  const statusSelecionado = document.getElementById('status').value;
+  const servicoSelecionado = document.getElementById('servico').value;
+  const diametroSelecionado = document.getElementById('diametro').value;
+  const dadosFiltrados = dadosKMZCarregados.filter(function(item) {
+
+  const atendeSistema =
+    !sistemaSelecionado || item.sistema === sistemaSelecionado;
+const atendeStatus =
+  !statusSelecionado || item.status === statusSelecionado;
+  const atendeServico =
+  !servicoSelecionado || item.servico === servicoSelecionado;
+  const atendeDiametro =
+  !diametroSelecionado || item.diametro === diametroSelecionado;
+  return item.tipoGeometrico === 'Polygon' || (atendeSistema && atendeStatus && atendeServico && atendeDiametro);
+
+});
+desenharTrechos(dadosFiltrados, preservarEnquadramento === true);
+
+}
+function definirAtualizacao(ativa, mensagem) {
+  document.getElementById('botaoAtualizar').disabled = ativa;
+  document.getElementById('botaoAtualizar').textContent = ativa ? 'ATUALIZANDO...' : 'ATUALIZAR';
+  document.getElementById('estadoAtualizacao').textContent = mensagem;
+  document.querySelector('.header-status').dataset.estado =
+    !ativa && /^(Dados .*atualizados|Leitura concluída)/.test(mensagem) ? 'atualizado' : 'pendente';
+  document.querySelector('main').setAttribute('aria-busy', String(ativa));
+  ['sistema', 'status', 'servico', 'diametro'].forEach(function(id) { document.getElementById(id).disabled = ativa; });
+  habilitarRelatorio();
+}
+
+function iniciarMedicaoAtualizacao(carga) {
+  medicaoAtualizacao = { carga: carga, inicio: performance.now(), recebimento: null };
+  const painel = document.getElementById('tempoAtualizacao');
+  ['recebimentoMs', 'apresentacaoMs', 'totalMs'].forEach(function(chave) { delete painel.dataset[chave]; });
+  document.getElementById('tempoAtualizacao').textContent = 'Medindo atualização...';
+}
+function registrarRecebimentoAtualizacao(carga) {
+  if (medicaoAtualizacao && medicaoAtualizacao.carga === carga) medicaoAtualizacao.recebimento = performance.now();
+}
+function concluirMedicaoAtualizacao(carga) {
+  const medicao = medicaoAtualizacao;
+  if (!medicao || medicao.carga !== carga || medicao.recebimento === null) return;
+  requestAnimationFrame(function() { requestAnimationFrame(function() {
+    if (carga !== versaoCarga || medicaoAtualizacao !== medicao) return;
+    const fim = performance.now();
+    function segundos(ms) { return (ms / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' s'; }
+    const painel = document.getElementById('tempoAtualizacao');
+    painel.textContent = 'Recebimento: ' + segundos(medicao.recebimento - medicao.inicio) + ' | Apresentação: ' + segundos(fim - medicao.recebimento) + ' | Total: ' + segundos(fim - medicao.inicio);
+    painel.dataset.recebimentoMs = medicao.recebimento - medicao.inicio;
+    painel.dataset.apresentacaoMs = fim - medicao.recebimento;
+    painel.dataset.totalMs = fim - medicao.inicio;
+  }); });
+}
+function interromperMedicaoAtualizacao(carga) {
+  if (!medicaoAtualizacao || medicaoAtualizacao.carga !== carga) return;
+  const segundos = ((performance.now() - medicaoAtualizacao.inicio) / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('tempoAtualizacao').textContent = 'Atualização não concluída. Tempo da tentativa: ' + segundos + ' s.';
+  medicaoAtualizacao = null;
+}
+function registrarLeitura() {
+  const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  leituraObra = avancosGlobaisObra ? agora + ' (America/Sao_Paulo)' : null;
+  consultaDesatualizada = false;
+  habilitarRelatorio();
+  document.getElementById('ultimaAtualizacao').textContent = 'Última leitura concluída: ' + agora;
+}
+
+function capturarConsulta() {
+  const filtros = {};
+  ['sistema', 'status', 'servico', 'diametro'].forEach(function(id) { filtros[id] = document.getElementById(id).value; });
+  return { obra: document.getElementById('obra').value, filtros: filtros, selecionado: idSelecionado };
+}
+
+function preencherFiltros(dados, anteriores) {
+  ['sistema', 'status', 'servico', 'diametro'].forEach(function(id) {
+    const select = document.getElementById(id);
+    select.replaceChildren();
+    const todos = document.createElement('option'); todos.value = ''; todos.textContent = 'Todos'; select.appendChild(todos);
+    const valores = Array.from(new Set(dados.map(function(item) { return item[id]; }).filter(Boolean))).sort(function(a, b) { return a.localeCompare(b, 'pt-BR'); });
+    valores.forEach(function(valor) {
+      const option = document.createElement('option'); option.value = valor; option.textContent = valor; select.appendChild(option);
+    });
+    select.value = anteriores && valores.indexOf(anteriores[id]) >= 0 ? anteriores[id] : '';
+  });
+}
+
+function esvaziarConsulta(estado) {
+  obraExibida = null; consultaDesatualizada = true;
+  habilitarRelatorio();
+  fotosPorElemento.clear();
+  leituraObra = null;
+  dadosKMZCarregados = [];
+  preencherFiltros([], null);
+  limparSelecao();
+  desenharTrechos([]);
+  renderizarAvancosGlobais(null, estado);
+  document.getElementById('avisosLeitura').textContent = '';
+  renderizarArquivosLeitura([]);
+}
+
+function renderizarArquivosLeitura(arquivos) {
+  const painel = document.getElementById('arquivosObra'), lista = document.getElementById('listaArquivos');
+  painel.hidden = !arquivos.length; lista.replaceChildren();
+  document.getElementById('resumoArquivos').textContent = 'Arquivos KML/KMZ na pasta: ' + arquivos.length;
+  arquivos.forEach(function(arquivo) {
+    const item = document.createElement('li'); item.textContent = arquivo.nome + ' — ' + arquivo.situacao; lista.appendChild(item);
+  });
+}
+
+function atualizarDados() {
+  if (document.getElementById('botaoAtualizar').disabled) return;
+  carregarObras(capturarConsulta());
+}
+
+function carregarArquivosObra(consultaAnterior, token, avisoAtualizacao, antecipada) {
+  if (tipoMapa === '3d') guardarVista3d();
+  const select = document.getElementById('obra');
+  const option = select.options[select.selectedIndex];
+  const obra = select.value;
+  if (!option || !obra) return;
+  const carga = token === undefined ? ++versaoCarga : token;
+  if (carga !== versaoCarga) return;
+  const restaurar = consultaAnterior && consultaAnterior.obra === obra ? consultaAnterior : null;
+  const manterConsulta = !!(leituraObra && obraExibida === obra);
+  const enquadramento = manterConsulta && mapa.getCenter ? { centro: mapa.getCenter(), zoom: mapa.getZoom() } : null;
+  if (token === undefined) iniciarMedicaoAtualizacao(carga);
+  consultaDesatualizada = true;
+  if (!manterConsulta) esvaziarConsulta('carregando');
+  definirAtualizacao(true, manterConsulta ? 'Atualizando. Os dados da última leitura continuam visíveis.' : 'Lendo os arquivos vigentes da obra...');
+  document.getElementById('concessionaria').textContent = option.dataset.concessionaria || 'Não informada';
+  document.getElementById('avisoPasta').textContent = option.dataset.aviso || '';
+  if (!manterConsulta) document.getElementById('avisosLeitura').textContent = 'Carregando dados da obra...';
+  if (!manterConsulta) atualizarPrevisoes(option.dataset.extensaoAgua === '' ? null : Number(option.dataset.extensaoAgua),
+    option.dataset.extensaoEsgoto === '' ? null : Number(option.dataset.extensaoEsgoto));
+  const consulta = antecipada
+    ? antecipada.then(function(item) { if (item.erro) throw item.erro; return item.resultado; })
+    : consultarCifipe(endpointDetalhes, { obra, modo: 'mapa', revisao: manterConsulta ? revisaoExibida : null });
+  consulta
+    .then(function(resultado) {
+      if (carga !== versaoCarga || select.value !== obra) return;
+      registrarRecebimentoAtualizacao(carga);
+      if (resultado.naoModificado && manterConsulta) {
+        definirAtualizacao(false, 'Dados já atualizados.');
+        registrarLeitura();
+        concluirMedicaoAtualizacao(carga);
+        return;
+      }
+      const resposta = resultado.data;
+      if (resultado.revisao !== revisaoExibida) fotosPorElemento.clear();
+      revisaoExibida = resultado.revisao || null;
+      const dados = resposta.dados.filter(function(item) { return item.tipoGeometrico === 'Polygon' || ['planejado', 'pendente'].indexOf(normalizarValor(item.status)) < 0; });
+      dadosKMZCarregados = dados;
+      obraExibida = obra;
+      renderizarArquivosLeitura(resposta.arquivosLeitura || []);
+      renderizarAvancosGlobais(resposta.avancosGlobais || null);
+      document.getElementById('avisosLeitura').textContent = resposta.diagnosticos.map(function(item) {
+        return item.nomeArquivo + (item.elemento ? ' — ' + item.elemento : '') + ': ' + item.mensagem;
+      }).join('\n');
+      preencherFiltros(dados, restaurar ? restaurar.filtros : null);
+      aplicarFiltros(!!enquadramento);
+      if (enquadramento) mapa.setView(enquadramento.centro, enquadramento.zoom, { animate: false });
+      if (restaurar && restaurar.selecionado && dadosExibidos.some(function(item) { return item.idElemento === restaurar.selecionado; })) selecionarElemento(restaurar.selecionado, false);
+      const incompleto = resposta.diagnosticos.some(function(item) { return item.nivel === 'erro'; });
+      definirAtualizacao(false, (avisoAtualizacao ? avisoAtualizacao + ' ' : '') + (incompleto ? 'Leitura concluída com falhas em arquivos; consulte os avisos.' : 'Dados da obra atualizados.'));
+      registrarLeitura();
+      concluirMedicaoAtualizacao(carga);
+    })
+    .catch(function(erro) {
+      if (carga !== versaoCarga || select.value !== obra) return;
+      if (!manterConsulta) esvaziarConsulta('erro');
+      document.getElementById('avisosLeitura').textContent = 'Não foi possível carregar a obra: ' + erro.message;
+      definirAtualizacao(false, manterConsulta ? 'Atualização falhou. Exibindo a última leitura, sem confirmação de atualização. Use ATUALIZAR para tentar novamente.' : 'Falha na leitura dos dados. Use ATUALIZAR para tentar novamente.');
+      interromperMedicaoAtualizacao(carga);
+    });
+}
+
+let opcoesTodasObras = [];
+function filtrarObrasConcessionaria(selecionada) {
+  const select = document.getElementById('obra'), conc = document.getElementById('filtroConcessionaria').value;
+  const opcoes = opcoesTodasObras.filter(function(o) { return o.dataset.concessionaria === conc; });
+  select.replaceChildren(...opcoes);
+  if (opcoes.length) select.value = opcoes[0].value;
+  if (selecionada && Array.from(select.options).some(function(o) { return o.value === selecionada; })) select.value = selecionada;
+}
+function selecionarConcessionariaDashboard() {
+  filtrarObrasConcessionaria();
+  carregarArquivosObra();
+}
+function carregarObras(consultaAnterior) {
+  const carga = ++versaoCarga;
+  const select = document.getElementById('obra');
+  const manterConsulta = !!(consultaAnterior && leituraObra && obraExibida === consultaAnterior.obra);
+  iniciarMedicaoAtualizacao(carga); consultaDesatualizada = true;
+  if (!manterConsulta) esvaziarConsulta('carregando');
+  select.disabled = true;
+  document.getElementById('filtroConcessionaria').disabled = true;
+  definirAtualizacao(true, manterConsulta ? 'Atualizando. Os dados da última leitura continuam visíveis.' : 'Relendo a lista de obras...');
+  const antecipada = manterConsulta
+    ? consultarCifipe(endpointDetalhes, { obra: consultaAnterior.obra, modo: 'mapa', revisao: revisaoExibida })
+        .then(function(resultado) { return { resultado }; }, function(erro) { return { erro }; })
+    : null;
+  consultarCifipe(endpointLista)
+    .then(function(resultado) {
+      const obras = resultado.data;
+      if (carga !== versaoCarga) return;
+      document.getElementById('filtroConcessionaria').disabled = false;
+      select.replaceChildren();
+      obras.forEach(function(obra) {
+        const option = document.createElement('option'); option.value = obra.id; option.textContent = obra.nome;
+        option.dataset.extensao = obra.extensao ?? '';
+        option.dataset.extensaoAgua = obra.extensaoAgua ?? '';
+        option.dataset.extensaoEsgoto = obra.extensaoEsgoto ?? '';
+        option.dataset.padraoPasta = obra.padraoPasta || 'legado';
+        option.dataset.aviso = obra.aviso || '';
+        option.dataset.concessionaria = obra.concessionaria || '';
+        select.appendChild(option);
+      });
+      if (!obras.length) {
+        registrarRecebimentoAtualizacao(carga);
+        opcoesTodasObras = []; document.getElementById('filtroConcessionaria').replaceChildren(new Option('Nenhuma concessionária disponível', '')); 
+        const option = document.createElement('option'); option.value = ''; option.textContent = 'Nenhuma obra encontrada'; select.appendChild(option);
+        esvaziarConsulta(); atualizarPrevisoes(null, null);
+        document.getElementById('concessionaria').textContent = '—'; document.getElementById('avisoPasta').textContent = '';
+        definirAtualizacao(false, 'Leitura concluída: nenhuma obra disponível.'); registrarLeitura(); concluirMedicaoAtualizacao(carga);
+        return;
+      }
+      opcoesTodasObras = Array.from(select.options);
+      const concSelect = document.getElementById('filtroConcessionaria');
+      const anterior = consultaAnterior && opcoesTodasObras.find(function(o) { return o.value === consultaAnterior.obra; });
+      const concAnterior = anterior ? anterior.dataset.concessionaria : concSelect.value;
+      const nomes = Array.from(new Set(opcoesTodasObras.map(function(o) { return o.dataset.concessionaria; })));
+      concSelect.replaceChildren(...nomes.map(function(nome) { return new Option(nome || 'Não informada', nome); }));
+      if (nomes.includes(concAnterior)) concSelect.value = concAnterior;
+      filtrarObrasConcessionaria(anterior && anterior.value);
+      select.disabled = false;
+      const obraPreservada = consultaAnterior && obras.some(function(obra) { return obra.id === consultaAnterior.obra; });
+      if (obraPreservada) select.value = consultaAnterior.obra;
+      const aviso = consultaAnterior && consultaAnterior.obra && !obraPreservada ? 'A obra anterior não está disponível; outra obra foi selecionada.' : '';
+      carregarArquivosObra(obraPreservada ? consultaAnterior : null, carga, aviso, obraPreservada ? antecipada : null);
+    })
+    .catch(function(erro) {
+      if (carga !== versaoCarga) return;
+      if (!manterConsulta) { esvaziarConsulta('erro'); atualizarPrevisoes(null, null); }
+      select.disabled = !select.value;
+      document.getElementById('filtroConcessionaria').disabled = false;
+      document.getElementById('avisosLeitura').textContent = 'Não foi possível listar as obras: ' + erro.message;
+      definirAtualizacao(false, manterConsulta ? 'Atualização falhou. Exibindo a última leitura, sem confirmação de atualização. Use ATUALIZAR para tentar novamente.' : 'Falha ao reler obras. Use ATUALIZAR para tentar novamente.');
+      interromperMedicaoAtualizacao(carga);
+    });
+}
+function desenharMapaSemBiblioteca(dados) {
+  const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 1000 600'); svg.style.cssText = 'width:100%;height:100%;background:#160424';
+  const vertices = dados.flatMap(function(item) { return item.coordenadasMapa || []; });
+  const box = vertices.reduce(function(b, c) { return { x0: Math.min(b.x0, c[1]), x1: Math.max(b.x1, c[1]), y0: Math.min(b.y0, c[0]), y1: Math.max(b.y1, c[0]) }; }, { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity });
+  function xy(c) { return [80 + (c[1] - box.x0) / Math.max(box.x1 - box.x0, .00001) * 840, 510 - (c[0] - box.y0) / Math.max(box.y1 - box.y0, .00001) * 420]; }
+  const norte = document.createElementNS(ns, 'text'); norte.setAttribute('x', '30'); norte.setAttribute('y', '35'); norte.setAttribute('fill', '#fff'); norte.textContent = 'N ↑ · Coordenadas WGS84'; svg.appendChild(norte);
+  const legenda = document.createElementNS(ns, 'text'); legenda.setAttribute('x', '30'); legenda.setAttribute('y', '570'); legenda.setAttribute('fill', '#fff'); legenda.textContent = 'Água: ciano · Esgoto: rosa · Pontos: cinza · Em execução: tracejado'; svg.appendChild(legenda);
+  ordenarCamadasMapa(dados).forEach(function(item) {
+    const coords = (item.coordenadasMapa || []).map(xy); if (!coords.length) return;
+    const ponto = item.tipoGeometrico === 'Point', poligono = item.tipoGeometrico === 'Polygon', node = document.createElementNS(ns, 'path');
+    const estilo = { color: poligono ? '#ff802f' : ponto ? '#9aa5b1' : normalizarValor(item.sistema) === 'agua' ? '#20e4e4' : normalizarValor(item.sistema) === 'esgoto' ? '#ff4da6' : '#9aa5b1', weight: ponto ? 2 : 6, opacity: .85, fillOpacity: .65 };
+    if (ponto) { node.setAttribute('transform', 'translate(' + coords[0].join(' ') + ')'); node.setAttribute('d', 'M0 0C-3-6-12-15-12-22a12 12 0 0 1 24 0C12-15 3-6 0 0Z'); }
+    else { node.setAttribute('d', coords.map(function(c, i) { return (i ? 'L' : 'M') + c.join(' '); }).join(' ')); node.setAttribute('fill', 'none'); if (poligono) { node.setAttribute('fill-opacity', '0'); node.setAttribute('fill-rule', 'evenodd'); node.setAttribute('d', (item.aneisMapa || [item.coordenadasMapa]).map(function(ring) { return ring.map(xy).map(function(c, i) { return (i ? 'L' : 'M') + c.join(' '); }).join(' ') + 'Z'; }).join(' ')); } if (!poligono && normalizarValor(item.status) === 'em execucao') node.setAttribute('stroke-dasharray', '10 7'); }
+    node.setAttribute('data-geometria', item.tipoGeometrico);
+    node.style.cursor = 'pointer'; node.setAttribute('tabindex', '0'); node.setAttribute('role', 'button'); node.setAttribute('aria-label', 'Selecionar ' + item.nome);
+    const title = document.createElementNS(ns, 'title'); title.textContent = item.nome; node.appendChild(title);
+    if (!poligono) node.addEventListener('click', function() { selecionarElemento(item.idElemento, false); });
+    if (poligono) { node.style.pointerEvents = 'none'; node.removeAttribute('tabindex'); node.removeAttribute('role'); }
+    if (!poligono) node.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selecionarElemento(item.idElemento, false); } });
+    svg.appendChild(node);
+    const camada = { setStyle: function(s) { node.setAttribute('stroke', s.color); node.setAttribute('stroke-width', s.weight); node.setAttribute('opacity', s.opacity); if (ponto) { node.setAttribute('fill', s.color); node.setAttribute('fill-opacity', s.fillOpacity); } }, setRadius: function(r) { if (ponto) node.setAttribute('transform', 'translate(' + coords[0].join(' ') + ') scale(' + (r / 7) + ')'); }, bringToFront: function() { svg.appendChild(node); } };
+    camada.setStyle(estilo); camadasPorElemento.set(item.idElemento, { camada: camada, estilo: estilo, ponto: ponto, poligono: poligono });
+  });
+  document.getElementById('mapa').replaceChildren(svg);
+}
+
+function limparFiltrosVisuais() {
+  ['sistema', 'status', 'servico', 'diametro'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  aplicarFiltros();
+  document.querySelector('.filter-menu').open = false;
+}
+
+function ampliarMapaVisual() {
+  const painel = document.getElementById('painelMapa');
+  const aberto = painel.classList.toggle('mapa-ampliado');
+  const botao = painel.querySelector('.icon-button');
+  botao.setAttribute('aria-label', aberto ? 'Reduzir mapa' : 'Ampliar mapa');
+  if (mapa?.invalidateSize) mapa.invalidateSize();
+}
+
+function iniciarInterface() {
+  document.addEventListener('keydown', function(evento) {
+    if (evento.key === 'Escape' && document.getElementById('painelMapa').classList.contains('mapa-ampliado')) ampliarMapaVisual();
+  });
+  try {
+    const pai = window.parent;
+    if (pai !== window && pai.location.origin === location.origin && typeof pai.engedataCloseDashboard === 'function') {
+      const voltar = document.getElementById('voltarConsultaCifipe');
+      voltar.hidden = false;
+      voltar.addEventListener('click', function() { pai.engedataCloseDashboard(); });
+    }
+  } catch {
+    // Uma página de outra origem não pode comandar a navegação do dashboard.
+  }
+  document.querySelectorAll('[data-fundo]').forEach(function(botao) { botao.addEventListener('click', function() { trocarFundoMapa(botao.dataset.fundo); }); });
+  document.getElementById('voltarMapa2d').addEventListener('click', function() { trocarFundoMapa(ultimoMapa2d); });
+  document.getElementById('enquadrarObra3d').addEventListener('click', enquadrarElementos3d);
+  window.addEventListener('offline', function() { if (tipoMapa === '3d') falhaMapa3d(new Error('Sem conexão à internet para carregar imagens 3D.')); });
+  try { iniciarMapa(); }
+  catch (erro) {
+    camadaTrechos = null;
+    mapa = { fitBounds: function() {}, setView: function() {}, getZoom: function() { return 12; } };
+    document.getElementById('estadoMapa').textContent = 'Mapa de coordenadas sem fundo de ruas: a biblioteca do mapa não carregou. Os elementos continuam selecionáveis.';
+  }
+  carregarObras();
+document.getElementById('modalFoto').addEventListener('click', function(evento) {
+  const modal = evento.currentTarget, limites = modal.getBoundingClientRect();
+  if (evento.target === modal && (evento.clientX < limites.left || evento.clientX > limites.right || evento.clientY < limites.top || evento.clientY > limites.bottom)) fecharFoto();
+});
+document.getElementById('modalFoto').addEventListener('close', function() { document.getElementById('modalImg').removeAttribute('src'); });
+document.getElementById('modalImg').addEventListener('error', function() { document.getElementById('erroFoto').textContent = 'Não foi possível exibir a imagem.'; });
+}
+iniciarInterface();
+
+  </script>
+
+</body>
+</html>
