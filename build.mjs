@@ -13,7 +13,8 @@ if(key){
   if(!/^[A-Za-z0-9_-]{20,200}$/.test(key)) throw new Error('Formato invalido da chave Google Maps.');
   html=html.replace(/(<meta name="google-maps-api-key" content=")[^"]*(">)/,'$1'+key+'$2');
 }
-const files=new Map([['index.html',html],['dashboard.html',html]]);
+const inicio=await readFile(new URL('web/index.html',root),'utf8');
+const files=new Map([['index.html',inicio],['dashboard.html',html]]);
 for(const name of ['mapa-3d.js','relatorio.js','instalacao.js']) files.set(name,await readFile(new URL('web/'+name,root)));
 for(const name of ['manifest.webmanifest','sem-conexao.html']) files.set(name,await readFile(new URL('web/pwa/'+name,root)));
 for(const size of [180,192,512]) files.set('icons/cifipe-'+size+'.png',await readFile(new URL('web/icons/cifipe-'+size+'.png',root)));

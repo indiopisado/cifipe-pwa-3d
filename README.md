@@ -2,7 +2,9 @@
 
 Dashboard publico para acompanhamento de obras de saneamento: filtros, indicadores, mapas Local/Satelite/3D, selecao dos elementos vistoriados, fotografias e relatorios PDF/DOCX.
 
-Este repositorio contem somente a PWA de consulta. A area de operador de campo continua na hospedagem anterior, pois depende de um servidor para recebimento de arquivos. GitHub Pages hospeda os arquivos estaticos desta interface; dados, fotografias e geracao de relatorios continuam nos servicos existentes. Nao ha uma copia das obras ou fotografias neste repositorio.
+O endereco inicial apresenta os acessos a consulta e ao operador de campo. Consultar dashboard abre o mapa 3D em `dashboard.html`. O menu do dashboard oferece Voltar ao inicio e Elementos vistoriados. O acesso Operador de campo abre a hospedagem existente do C.I.FIPE, onde o usuario pode entrar na area autenticada de envio e gerenciamento.
+
+A area de operador de campo continua na hospedagem anterior, pois depende de um servidor para recebimento de arquivos. GitHub Pages hospeda os arquivos estaticos desta interface; dados, fotografias e geracao de relatorios continuam nos servicos existentes. Nao ha uma copia das obras ou fotografias neste repositorio.
 
 ## Compilar e verificar
 

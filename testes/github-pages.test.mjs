@@ -10,6 +10,27 @@ execFileSync(process.execPath,['build.mjs'],{cwd:fileURLToPath(root),stdio:'pipe
 const base='https://indiopisado.github.io/cifipe-pwa-3d/';
 const bytes=name=>readFileSync(new URL('docs/'+name,root),'utf8');
 
+test('inicio oferece consulta 3D e acesso ao operador na hospedagem existente',()=>{
+  const inicio=bytes('index.html');
+  assert.match(inicio, /href="\.\/dashboard\.html"/);
+  assert.match(inicio, /href="https:\/\/cifipe-pwa-teste\.davidsmjr\.chatgpt\.site\/"/);
+  assert.match(inicio, /Operador de campo/);
+  assert.doesNotMatch(inicio, /id="mapa"/);
+});
+
+test('menu da consulta mantem retorno visivel e volta ao inicio dentro do repositorio',()=>{
+  const html=bytes('dashboard.html');
+  assert.match(html, /id="voltarConsultaCifipe">Voltar ao início<\/button>/);
+  assert.match(html, /getElementById\('voltarConsultaCifipe'\)\.addEventListener\('click', voltarAoInicio\)/);
+  assert.match(html, /id="painelTabela"/);
+  const codigo=html.slice(html.indexOf('function voltarAoInicio()'),html.indexOf('function iniciarInterface()'));
+  for(const endereco of [base+'dashboard.html',base+'dashboard.html?obra=exemplo']){
+    const rotas=[];
+    runInNewContext(codigo+'\nvoltarAoInicio();',{URL,window:{location:{href:endereco,assign:url=>rotas.push(url)}}});
+    assert.deepEqual(rotas,[base]);
+  }
+});
+
 function worker(){
   const handlers=new Map(), cacheCalls=[], deleted=[];
   let offline=false;

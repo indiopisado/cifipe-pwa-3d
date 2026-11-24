@@ -1,6 +1,6 @@
 const base = new URL('./', self.registration?.scope || self.location.href || self.location.origin + '/');
 const cachePrefix = 'cifipe-pages-' + encodeURIComponent(base.pathname) + '-';
-const cacheName = cachePrefix + '3e5aa18a803a';
+const cacheName = cachePrefix + '19e1360abcea';
 const arquivos = ["./index.html","./dashboard.html","./mapa-3d.js","./relatorio.js","./instalacao.js","./manifest.webmanifest","./sem-conexao.html","./icons/cifipe-180.png","./icons/cifipe-192.png","./icons/cifipe-512.png","./.nojekyll"];
 const urls = arquivos.map(path => new URL(path,base).href);
 const estaticos = new Set(urls);
