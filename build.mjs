@@ -7,6 +7,7 @@ const root=new URL('./',import.meta.url);
 if(existsSync(new URL('.env.local',root))) process.loadEnvFile(fileURLToPath(new URL('.env.local',root)));
 const out=new URL('docs/',root);
 await mkdir(new URL('icons/',out),{recursive:true});
+await mkdir(new URL('apresentacao/',out),{recursive:true});
 let html=await readFile(new URL('web/dashboard.html',root),'utf8');
 const key=(process.env.GOOGLE_MAPS_API_KEY||'').trim();
 if(key){
@@ -15,6 +16,7 @@ if(key){
 }
 const inicio=await readFile(new URL('web/index.html',root),'utf8');
 const files=new Map([['index.html',inicio],['dashboard.html',html]]);
+for(const name of ['cifipe.png','fundo.png','inicio.css']) files.set('apresentacao/'+name,await readFile(new URL('web/apresentacao/'+name,root)));
 for(const name of ['mapa-3d.js','relatorio.js','instalacao.js']) files.set(name,await readFile(new URL('web/'+name,root)));
 for(const name of ['manifest.webmanifest','sem-conexao.html']) files.set(name,await readFile(new URL('web/pwa/'+name,root)));
 for(const size of [180,192,512]) files.set('icons/cifipe-'+size+'.png',await readFile(new URL('web/icons/cifipe-'+size+'.png',root)));

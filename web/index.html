@@ -6,44 +6,29 @@
   <meta name="theme-color" content="#0b1026">
   <title>C.I.FIPE</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="apple-touch-icon" href="./icons/cifipe-180.png">
+  <link rel="apple-touch-icon" href="./icons/cifipe-180.png?v=marca-20261125">
   <script defer src="./instalacao.js"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100dvh; color: #f6f3ff; font-family: "Segoe UI", Arial, sans-serif; background: radial-gradient(ellipse at 25% 45%, #200538 0, transparent 55%), linear-gradient(120deg, #06091f, #090721); }
-    main { min-height: 100dvh; max-width: 1200px; margin: auto; padding: 48px 28px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 72px; align-items: center; }
-    header { text-align: center; }
-    header img { width: 160px; height: 160px; border-radius: 24px; box-shadow: 0 0 20px #00d8ed40; }
-    .categoria { margin: 22px 0 12px; color: #00d8ed; font-size: 15px; font-weight: 700; letter-spacing: 4px; }
-    h1 { margin: 0; font-size: clamp(36px, 5vw, 58px); }
-    header p:last-child { max-width: 360px; margin: 22px auto 0; font-size: 22px; line-height: 1.45; color: #cbd6f2; }
-    nav { display: grid; gap: 24px; }
-    nav a { display: flex; align-items: center; gap: 22px; min-height: 158px; padding: 30px 26px; border: 2px solid #00d8ed; border-radius: 22px; color: inherit; text-decoration: none; background: linear-gradient(120deg, #06132a, #090b24); box-shadow: 0 0 18px #00d8ed20; }
-    nav a:last-child { border-color: #f126d4; background: linear-gradient(120deg, #20051e, #18051e); box-shadow: 0 0 18px #f126d420; }
-    .icone { width: 68px; height: 72px; padding: 14px; border: 2px solid currentColor; border-radius: 14px; color: #00d8ed; flex-shrink: 0; }
-    nav a:last-child .icone { color: #f126d4; }
-    strong { display: block; font-size: 26px; }
-    nav p { margin: 7px 0 0; font-size: 18px; line-height: 1.4; color: #cbd6f2; }
-    a:focus-visible { outline: 3px solid #fff; outline-offset: 6px; }
-    @media(max-width: 760px) { main { grid-template-columns: 1fr; gap: 36px; padding: 34px 22px; } header img { width: 110px; height: 110px; } header p:last-child { font-size: 18px; } nav a { min-height: 130px; padding: 22px 18px; gap: 18px; } strong { font-size: 22px; } nav p { font-size: 16px; } .icone { width: 58px; height: 62px; } }
-  </style>
+  <link rel="stylesheet" href="./apresentacao/inicio.css">
+  <link rel="icon" type="image/png" href="./icons/cifipe-192.png?v=marca-20261125">
 </head>
 <body>
   <main>
     <header>
-      <img src="./icons/cifipe-192.png" alt="Ícone C.I.FIPE" width="160" height="160">
+      <div class="marca"><img src="./apresentacao/cifipe.png" alt="C.I.FIPE — profissionais de engenharia sobre uma ponte" width="256" height="256"></div>
       <p class="categoria">CAMPO · CONSULTA</p>
       <h1>C.I.FIPE</h1>
-      <p>Arquivos da obra, do campo ao dashboard.</p>
+      <p class="descricao">Arquivos da obra, do<br>campo ao dashboard.</p>
     </header>
     <nav aria-label="Acessos do C.I.FIPE">
-      <a href="./dashboard.html">
-        <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 21V14H7V21ZM10 21V9H14V21ZM17 21V3H21V21Z"/></svg>
-        <div><strong>Consultar dashboard</strong><p>Mapas, indicadores e vistorias.</p></div>
+      <a class="acesso consulta" href="./dashboard.html">
+        <span class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 21V14H7V21ZM10 21V9H14V21ZM17 21V3H21V21Z"/></svg></span>
+        <span class="texto"><strong>Consultar dashboard</strong><small>Mapas, indicadores<br>e vistorias.</small></span>
+        <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5L16 12L9 19"/></svg><svg class="ondas" viewBox="0 0 300 65" preserveAspectRatio="none" aria-hidden="true"><path d="M-10 64C90 74 110 -18 190 12S260 48 315 20"/><path d="M-10 67.5C90 77.5 110 -14.5 190 15.5S260 51.5 315 23.5"/><path d="M-10 71C90 81 110 -11 190 19S260 55 315 27"/><path d="M-10 74.5C90 84.5 110 -7.5 190 22.5S260 58.5 315 30.5"/><path d="M-10 78C90 88 110 -4 190 26S260 62 315 34"/><path d="M-10 81.5C90 91.5 110 -0.5 190 29.5S260 65.5 315 37.5"/><path d="M-10 85C90 95 110 3 190 33S260 69 315 41"/><path d="M-10 88.5C90 98.5 110 6.5 190 36.5S260 72.5 315 44.5"/><path d="M-10 92C90 102 110 10 190 40S260 76 315 48"/></svg>
       </a>
-      <a href="https://cifipe-pwa-teste.davidsmjr.chatgpt.site/">
-        <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 16H21M5 16V12A7 7 0 0 1 19 12V16M10 10V3H14V10M5 21H19"/></svg>
-        <div><strong>Operador de campo</strong><p>Envio de arquivos e gerenciamento de obras.</p></div>
+      <a class="acesso operador" href="https://cifipe-pwa-teste.davidsmjr.chatgpt.site/">
+        <span class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 16H21M5 16V12A7 7 0 0 1 19 12V16M10 10V3H14V10M5 21H19"/></svg></span>
+        <span class="texto"><strong>Operador de campo</strong><small>Envio de arquivos<br>e gerenciamento de obras.</small></span>
+        <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5L16 12L9 19"/></svg><svg class="ondas" viewBox="0 0 300 65" preserveAspectRatio="none" aria-hidden="true"><path d="M-10 64C90 74 110 -18 190 12S260 48 315 20"/><path d="M-10 67.5C90 77.5 110 -14.5 190 15.5S260 51.5 315 23.5"/><path d="M-10 71C90 81 110 -11 190 19S260 55 315 27"/><path d="M-10 74.5C90 84.5 110 -7.5 190 22.5S260 58.5 315 30.5"/><path d="M-10 78C90 88 110 -4 190 26S260 62 315 34"/><path d="M-10 81.5C90 91.5 110 -0.5 190 29.5S260 65.5 315 37.5"/><path d="M-10 85C90 95 110 3 190 33S260 69 315 41"/><path d="M-10 88.5C90 98.5 110 6.5 190 36.5S260 72.5 315 44.5"/><path d="M-10 92C90 102 110 10 190 40S260 76 315 48"/></svg>
       </a>
     </nav>
   </main>
